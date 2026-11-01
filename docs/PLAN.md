@@ -83,6 +83,19 @@ Never contains emails of other people beyond what the admin entered, tokens, or 
 
 `POST /groups/{id}/regenerate-admin-link` (admin): rotates the admin token, emails the new link to the admin email.
 
+## API (milestone 2 shapes)
+
+All participant token. Items are `{ id, title, url, price, image_url }`, price in pence, returned in `sort_order`.
+
+- `PUT /me` `{ name?, secret_surprise? }` returns the same shape as `GET /me`.
+- `POST /me/items` `{ title, url?, price?, image_url? }` returns 201 with the item. Max 50 items. `url` must be http(s) with no credentials; `image_url` also can't be a private IP literal or localhost, since it loads in the giver's browser.
+- `PATCH /me/items/{id}` with any of those fields. Changing `url` without sending `image_url` clears the old preview image. The title can't be cleared.
+- `DELETE /me/items/{id}` returns 204.
+- `PUT /me/items/order` `{ ids: [...] }` must list every own item exactly once.
+- `POST /link-preview` `{ url }` returns `{ title, image_url }`, always 200, nulls on any failure or when rate limited (60 per participant per hour). Rules in `backend/app/linkpreview.py`: public addresses only (checked for every resolved address and after each redirect), connect to the checked IP with SNI for the real host (no DNS rebinding), default ports only, 3 redirects, 512 KB, 5 s overall.
+
+Reordering uses up/down buttons on each card: the reference screen has no reorder control, and buttons work with a keyboard and screen reader where drag and drop would not.
+
 ## Migrations
 
 1. `0001_initial`: groups, participants, exclusions, assignments, wishlist_items, reminders as in the spec, plus the fields below. Created in M1 so later milestones only add columns.
