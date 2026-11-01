@@ -1,0 +1,142 @@
+from datetime import date
+from typing import Annotated, Literal
+
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    model_validator,
+)
+
+MAX_BUDGET_PENCE = 1_000_000  # £10,000
+
+Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=60)]
+GroupName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+Message = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+Pence = Annotated[int, Field(ge=0, le=MAX_BUDGET_PENCE)]
+Email = Annotated[EmailStr, AfterValidator(str.lower)]
+
+
+def _not_in_past(value: date) -> date:
+    if value < date.today():
+        raise ValueError("The gift exchange date can't be in the past")
+    return value
+
+
+GiftDate = Annotated[date, AfterValidator(_not_in_past)]
+
+
+class StrictModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class BudgetMixin:
+    budget_min: int | None
+    budget_max: int | None
+
+    @model_validator(mode="after")
+    def _budget_order(self):  # type: ignore[no-untyped-def]
+        if (
+            self.budget_min is not None
+            and self.budget_max is not None
+            and self.budget_max < self.budget_min
+        ):
+            raise ValueError("Max budget must be at least the min budget")
+        return self
+
+
+class GroupCreate(BudgetMixin, StrictModel):
+    name: GroupName
+    gift_date: GiftDate
+    budget_min: Pence
+    budget_max: Pence
+    message: Message | None = None
+    admin_name: Name
+    admin_email: Email
+    admin_participates: bool = True
+
+
+class GroupCreated(BaseModel):
+    group_id: int
+    admin_link: str
+    invite_link: str
+    participant_link: str | None
+
+
+class GroupUpdate(BudgetMixin, StrictModel):
+    name: GroupName | None = None
+    gift_date: GiftDate | None = None
+    budget_min: Pence | None = None
+    budget_max: Pence | None = None
+    message: Message | None = None
+    show_exclusions: bool | None = None
+
+
+class GroupPublic(BaseModel):
+    """What any member of the group may see."""
+
+    id: int
+    name: str
+    gift_date: date
+    budget_min: int
+    budget_max: int
+    message: str | None
+    admin_name: str
+    draw_status: str
+    days_to_go: int
+
+
+ParticipantStatus = Literal["invited", "joined", "wish_list_in"]
+
+
+class ParticipantSummary(BaseModel):
+    id: int
+    name: str
+    status: ParticipantStatus
+    is_admin: bool
+
+
+class AdminGroup(GroupPublic):
+    invite_link: str
+    show_exclusions: bool
+    exclusion_pair_count: int
+    participants: list[ParticipantSummary]
+
+
+class InvitePreview(BaseModel):
+    group_name: str
+    admin_name: str
+    gift_date: date
+    budget_min: int
+    budget_max: int
+    message: str | None
+
+
+class JoinRequest(StrictModel):
+    name: Name
+    email: Email
+
+
+class AddParticipant(StrictModel):
+    name: Name
+    email: Email
+
+
+class WishlistItemOut(BaseModel):
+    id: int
+    title: str
+    url: str | None
+    price: int | None
+    image_url: str | None
+
+
+class Me(BaseModel):
+    id: int
+    name: str
+    is_admin: bool
+    secret_surprise: bool
+    group: GroupPublic
+    items: list[WishlistItemOut]
