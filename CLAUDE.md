@@ -34,4 +34,10 @@ Free, ad-free Secret Santa web app. No user accounts: people act through private
 
 ## Commands
 
-Filled in as the project is built (a `Makefile` with `dev`, `test`, `lint`, `migrate` is part of milestone 1).
+Copy `.env.example` to `.env` first. `make` targets (on Windows without make, run the commands under each target directly):
+
+- `make up`: start Postgres and Mailpit (Mailpit UI at http://localhost:8025)
+- `make migrate`: `uv run alembic upgrade head` in `backend/`
+- `make dev`: up, migrate, then API on :8000 and Vite on :5173
+- `make test`: `uv run pytest` in `backend/` (needs Postgres; uses the `santa_test` database) and `npm test` in `frontend/`
+- `make lint`: ruff check and format check, eslint and `tsc -b`
