@@ -26,15 +26,19 @@ const SNOW = [
 ]
 
 type Props = {
+  /** Replaces the brand row, e.g. with a back link on admin sub-pages. */
+  top?: ReactNode
   aside?: ReactNode
   /** The join and reveal screens use a taller band with a larger radius. */
   tall?: boolean
   roomy?: boolean
+  /** Tighter band for admin sub-pages with a back link. */
+  compact?: boolean
   children: ReactNode
 }
 
-export function HeaderBand({ aside, tall, roomy, children }: Props) {
-  const className = ['band', tall && 'band--tall', roomy && 'band--roomy'].filter(Boolean).join(' ')
+export function HeaderBand({ top, aside, tall, roomy, compact, children }: Props) {
+  const className = ['band', tall && 'band--tall', roomy && 'band--roomy', compact && 'band--compact'].filter(Boolean).join(' ')
   return (
     <header className={className}>
       {SNOW.map((s) => (
@@ -46,10 +50,12 @@ export function HeaderBand({ aside, tall, roomy, children }: Props) {
         />
       ))}
       <div className="band__top">
-        <div className="band__brand">
-          <SnowflakeIcon />
-          <span>Secret Santa</span>
-        </div>
+        {top ?? (
+          <div className="band__brand">
+            <SnowflakeIcon />
+            <span>Secret Santa</span>
+          </div>
+        )}
         {aside && <span className="band__aside">{aside}</span>}
       </div>
       {children}

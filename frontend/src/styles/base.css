@@ -642,3 +642,148 @@ a.tag__link:hover {
 .form-actions > * {
   flex: 1;
 }
+
+/* Exclusions */
+.band--compact {
+  padding-top: 6px;
+  padding-bottom: 20px;
+  gap: 6px;
+}
+.band__back {
+  display: flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--gold);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.band__back:hover {
+  color: #fff;
+}
+.band__badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  padding: 2px 10px;
+}
+
+.grid-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 10px;
+  overflow-x: auto;
+}
+.xgrid {
+  display: grid;
+  gap: 4px;
+  align-items: center;
+}
+.xgrid__corner {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.1;
+  align-self: end;
+}
+.xgrid__col,
+.xgrid__row {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xgrid__col {
+  text-align: center;
+  align-self: end;
+}
+.xgrid__row {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+}
+.cell {
+  height: var(--tap);
+  min-width: var(--tap);
+  border-radius: 10px;
+  border: 1.5px dashed var(--border-strong);
+  background: var(--surface);
+  color: #fff;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+}
+.cell--blocked {
+  border: 1.5px solid var(--berry);
+  background: var(--berry);
+}
+.cell--self {
+  border: 1.5px solid var(--border);
+  background: var(--cell-disabled);
+  cursor: default;
+}
+.cell:not(:disabled):hover {
+  border-color: var(--pine);
+}
+.cell--blocked:not(:disabled):hover {
+  border-color: var(--berry-tint-text);
+}
+
+.option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.option-row input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--pine);
+}
+
+.picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.picker__person {
+  min-height: var(--tap);
+  padding: 0 14px;
+  border-radius: 22px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.picker__person[aria-pressed='true'] {
+  background: var(--pine);
+  border-color: var(--pine);
+  color: #fff;
+}
+
+.verdict {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pine);
+}
+.verdict svg {
+  flex: none;
+  margin-top: 1px;
+}
+.verdict--bad {
+  color: var(--berry);
+}
