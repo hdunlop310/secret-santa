@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cosy Cabin create group</title>
+</head>
+<body>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+body{margin:0;background:#e9e4da;display:flex;justify-content:center}
+</style>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: #FBF6EE; color: #2B2118; font-family: 'DM Sans', system-ui, sans-serif; font-size: 15px; display: flex; flex-direction: column; overflow: hidden">
+<div style="position: relative; background: #1F4D3A; border-radius: 0 0 28px 28px; padding: 18px 20px 24px; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+<div aria-hidden="true" style="position: absolute; top: 18px; right: 40px; width: 8px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.35)"></div>
+<div aria-hidden="true" style="position: absolute; top: 70px; right: 96px; width: 5px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.3)"></div>
+<div aria-hidden="true" style="position: absolute; top: 96px; right: 28px; width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.3)"></div>
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div style="display: flex; align-items: center; gap: 8px">
+<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F0DDA8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M4.5 7.5l15 9M19.5 7.5l-15 9M9.5 4.5L12 7l2.5-2.5M9.5 19.5L12 17l2.5 2.5"/></svg>
+<span style="font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: #F0DDA8">Secret Santa</span>
+</div>
+<span style="font-size: 13px; color: #E9E2D2">Step 1 of 2</span>
+</div>
+<h1 style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 30px; line-height: 1.1; color: #FFFFFF">Create a Secret Santa</h1>
+</div>
+<div style="box-sizing: border-box; padding: 16px 20px 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="gname" style="font-size: 13px; font-weight: 700">Group name</label>
+<input id="gname" type="text" placeholder="e.g. Family Secret Santa" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="gdate" style="font-size: 13px; font-weight: 700">Gift exchange date</label>
+<input id="gdate" type="date" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="bmin" style="font-size: 13px; font-weight: 700">Min budget (£)</label>
+<input id="bmin" type="text" inputmode="decimal" placeholder="15" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="bmax" style="font-size: 13px; font-weight: 700">Max budget (£)</label>
+<input id="bmax" type="text" inputmode="decimal" placeholder="25" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="gmsg" style="font-size: 13px; font-weight: 700">Message to the group (optional)</label>
+<textarea id="gmsg" placeholder="Rules, theme, where to meet..." style="height: 60px; box-sizing: border-box; padding: 10px 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118; resize: none"></textarea>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; margin-top: 2px">
+<span style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: 17px">About you</span>
+<div style="flex: 1; height: 1.5px; background: #E7DCCB"></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="aname" style="font-size: 13px; font-weight: 700">Your name</label>
+<input id="aname" type="text" placeholder="Sam" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<label for="aemail" style="font-size: 13px; font-weight: 700">Your email</label>
+<input id="aemail" type="email" placeholder="you@email.com" style="height: 44px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid #8C7B68; border-radius: 12px; font-size: 15px; font-family: inherit; background: #FFFFFF; color: #2B2118">
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px; min-height: 44px">
+<input id="atake" type="checkbox" checked style="width: 22px; height: 22px; margin: 0; accent-color: #1F4D3A">
+<label for="atake" style="font-size: 14px">I'm taking part too</label>
+</div>
+<button type="button" style="height: 52px; border: none; border-radius: 14px; background: #1F4D3A; color: #FFFFFF; font-size: 16px; font-weight: 700; font-family: inherit">Create group</button>
+</div>
+</div>
+</body>
+</html>
