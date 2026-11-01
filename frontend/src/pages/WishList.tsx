@@ -1,30 +1,177 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { api, type Me } from '../api'
+import { api, type Me, type WishlistItem } from '../api'
+import { GiftTag } from '../components/GiftTag'
 import { HeaderBand } from '../components/HeaderBand'
+import { ItemForm, type ItemInput } from '../components/ItemForm'
 import { ErrorState, LoadingPage } from '../components/States'
-import { formatBudget, formatDate } from '../format'
+import { formatBudget } from '../format'
 
-/** Landing page for personal links. The wish list editor arrives in milestone 2. */
+function Arrow({ up }: { up?: boolean }) {
+  return (
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d={up ? 'M12 19V5M5 12l7-7 7 7' : 'M12 5v14M5 12l7 7 7-7'} />
+    </svg>
+  )
+}
+
 export function WishListPage() {
-  const { participantToken = '' } = useParams()
-  const query = useQuery({
-    queryKey: ['me', participantToken],
-    queryFn: () => api<Me>('/me', { token: participantToken }),
+  const { participantToken: token = '' } = useParams()
+  const queryClient = useQueryClient()
+  const key = ['me', token]
+  const query = useQuery({ queryKey: key, queryFn: () => api<Me>('/me', { token }) })
+  const [editing, setEditing] = useState<number | null>(null)
+
+  const setMe = (update: (me: Me) => Me) => queryClient.setQueryData<Me>(key, (me) => (me ? update(me) : me))
+  const refresh = () => queryClient.invalidateQueries({ queryKey: key })
+
+  const surprise = useMutation({
+    mutationFn: (secret_surprise: boolean) => api<Me>('/me', { method: 'PUT', token, body: { secret_surprise } }),
+    onSuccess: (me) => queryClient.setQueryData(key, me),
+  })
+  const addItem = useMutation({
+    mutationFn: (item: ItemInput) => api<WishlistItem>('/me/items', { method: 'POST', token, body: item }),
+    onSuccess: (item) => setMe((me) => ({ ...me, items: [...me.items, item] })),
+  })
+  const editItem = useMutation({
+    mutationFn: ({ id, item }: { id: number; item: ItemInput }) =>
+      api<WishlistItem>(`/me/items/${id}`, { method: 'PATCH', token, body: item }),
+    onSuccess: (item) => {
+      setMe((me) => ({ ...me, items: me.items.map((i) => (i.id === item.id ? item : i)) }))
+      setEditing(null)
+    },
+  })
+  const removeItem = useMutation({
+    mutationFn: (id: number) => api(`/me/items/${id}`, { method: 'DELETE', token }),
+    onSuccess: (_data, id) => setMe((me) => ({ ...me, items: me.items.filter((i) => i.id !== id) })),
+  })
+  const reorder = useMutation({
+    mutationFn: (ids: number[]) => api<WishlistItem[]>('/me/items/order', { method: 'PUT', token, body: { ids } }),
+    onMutate: (ids) => {
+      setMe((me) => ({ ...me, items: ids.map((id) => me.items.find((i) => i.id === id)!) }))
+    },
+    onError: refresh,
   })
 
   if (query.isPending) return <LoadingPage />
   if (query.isError) return <ErrorState error={query.error} />
-  const { group } = query.data
+  const me = query.data
+  const { group, items } = me
+
+  function move(index: number, by: -1 | 1) {
+    const ids = items.map((i) => i.id)
+    ;[ids[index], ids[index + by]] = [ids[index + by], ids[index]]
+    reorder.mutate(ids)
+  }
+
+  const listError = removeItem.error ?? reorder.error ?? surprise.error
 
   return (
     <main className="page">
-      <HeaderBand aside={group.name}>
-        <h1 className="band__title">Your wish list</h1>
-        <p className="band__facts">
-          {formatDate(group.gift_date)} · {formatBudget(group.budget_min, group.budget_max)}
-        </p>
+      <HeaderBand aside={me.name}>
+        <h1 className="band__title" style={{ fontSize: 28 }}>
+          Your wish list
+        </h1>
+        <p className="band__facts">Budget {formatBudget(group.budget_min, group.budget_max)}</p>
       </HeaderBand>
+      <div className="content" style={{ paddingTop: 14, gap: 10 }}>
+        <div className="surprise-card">
+          <input
+            id="surprise"
+            type="checkbox"
+            checked={me.secret_surprise}
+            disabled={surprise.isPending}
+            onChange={(e) => surprise.mutate(e.target.checked)}
+          />
+          <label htmlFor="surprise">Secret surprise: skip my list</label>
+        </div>
+
+        {listError && (
+          <p className="alert" role="alert" style={{ margin: 0 }}>
+            {listError.message}
+          </p>
+        )}
+
+        {!me.secret_surprise && (
+          <>
+            {items.length > 0 && (
+              <ul className="items" aria-label="Your items">
+                {items.map((item, index) =>
+                  editing === item.id ? (
+                    <li key={item.id}>
+                      <ItemForm
+                        token={token}
+                        heading="Edit item"
+                        initial={item}
+                        saving={editItem.isPending}
+                        error={editItem.error?.message}
+                        onSave={(input) => editItem.mutateAsync({ id: item.id, item: input })}
+                        onCancel={() => {
+                          editItem.reset()
+                          setEditing(null)
+                        }}
+                      />
+                    </li>
+                  ) : (
+                    <li key={item.id}>
+                      <GiftTag
+                        item={item}
+                        budgetMax={group.budget_max}
+                        actions={
+                          <>
+                            <button type="button" className="link-btn" onClick={() => setEditing(item.id)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="link-btn link-btn--danger"
+                              disabled={removeItem.isPending}
+                              onClick={() => removeItem.mutate(item.id)}
+                            >
+                              Remove
+                            </button>
+                            {items.length > 1 && (
+                              <>
+                                <span className="spacer" />
+                                <button
+                                  type="button"
+                                  className="icon-btn"
+                                  aria-label={`Move ${item.title} up`}
+                                  disabled={index === 0 || reorder.isPending}
+                                  onClick={() => move(index, -1)}
+                                >
+                                  <Arrow up />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="icon-btn"
+                                  aria-label={`Move ${item.title} down`}
+                                  disabled={index === items.length - 1 || reorder.isPending}
+                                  onClick={() => move(index, 1)}
+                                >
+                                  <Arrow />
+                                </button>
+                              </>
+                            )}
+                          </>
+                        }
+                      />
+                    </li>
+                  ),
+                )}
+              </ul>
+            )}
+            <ItemForm
+              token={token}
+              heading="Add an item"
+              saving={addItem.isPending}
+              error={addItem.error?.message}
+              onSave={(input) => addItem.mutateAsync(input)}
+            />
+          </>
+        )}
+      </div>
     </main>
   )
 }
