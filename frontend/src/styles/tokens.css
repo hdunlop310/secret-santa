@@ -1,0 +1,35 @@
+/* Design tokens from docs/DESIGN.md ("Cosy Cabin"). */
+:root {
+  --cream: #fbf6ee;
+  --surface: #ffffff;
+  --surface-muted: #f3ebdd;
+  --surface-dashed: #f5eedf;
+  --border: #e7dccb;
+  --border-row: #f0e7d8;
+  --border-strong: #8c7b68;
+  --ink: #2b2118;
+  --ink-soft: #4a3d31;
+  --muted: #6b5d50;
+  --chip-muted-text: #5b4e42;
+  --pine: #1f4d3a;
+  --pine-tint: #dde9e1;
+  --berry: #b3262e;
+  --berry-tint: #f6dadb;
+  --berry-tint-text: #8f1d25;
+  --gold: #f0dda8;
+  --on-pine-muted: #e9e2d2;
+  --warn-bg: #fff1cc;
+  --warn-border: #b7791f;
+  --warn-text: #5c3b00;
+  --cell-disabled: #ede4d3;
+
+  --font-heading: 'Fraunces', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+
+  --radius-card: 16px;
+  --radius-input: 12px;
+  --radius-button: 14px;
+  --radius-chip: 10px;
+  --radius-pill: 14px;
+  --tap: 44px;
+}
