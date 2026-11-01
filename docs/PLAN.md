@@ -96,6 +96,16 @@ All participant token. Items are `{ id, title, url, price, image_url }`, price i
 
 Reordering uses up/down buttons on each card: the reference screen has no reorder control, and buttons work with a keyboard and screen reader where drag and drop would not.
 
+## API (milestone 3 shapes)
+
+- `GET /groups/{id}/exclusions` (admin, or a participant when `show_exclusions` is on) returns `{ show_exclusions, participants: [{ id, name }], pairs: [{ giver_id, giftee_id }] }`. One row per blocked direction.
+- `PUT /groups/{id}/exclusions` (admin) `{ pairs, show_exclusions? }` replaces all pairs. Saving an impossible set is allowed; the screen warns and the draw refuses.
+- `POST /groups/{id}/exclusions/check` (admin) `{ pairs }` checks unsaved pairs with the real matching code: `{ possible, reason: null | "too_few" | "stuck", bottleneck: { side: "give" | "receive", people, options } }`. The screen calls it 250 ms after each change.
+
+Matching lives in `backend/app/matching.py`: feasibility and the bottleneck come from bipartite matching and Hall's theorem (exact, instant); the draw tries a single Hamiltonian cycle, then a cover with no two-person swaps, then any matching, all from `random.SystemRandom`.
+
+The grid is keyboard navigable: one cell is in the tab order and the arrow keys move between cells, skipping the diagonal. With many people it scrolls sideways inside its card while the giver names stay pinned.
+
 ## Migrations
 
 1. `0001_initial`: groups, participants, exclusions, assignments, wishlist_items, reminders as in the spec, plus the fields below. Created in M1 so later milestones only add columns.
