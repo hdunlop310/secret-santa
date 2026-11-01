@@ -1,5 +1,6 @@
 from datetime import date
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 
 from pydantic import (
     AfterValidator,
@@ -10,6 +11,8 @@ from pydantic import (
     StringConstraints,
     model_validator,
 )
+
+from app.linkpreview import is_safe_image_url
 
 MAX_BUDGET_PENCE = 1_000_000  # £10,000
 
@@ -140,3 +143,65 @@ class Me(BaseModel):
     secret_surprise: bool
     group: GroupPublic
     items: list[WishlistItemOut]
+
+
+MAX_ITEMS = 50
+
+
+def _http_url(value: str) -> str:
+    """Only plain http(s) links: no javascript:, data: or credentials in the URL."""
+    parts = urlsplit(value)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ValueError("Enter a link starting with http:// or https://")
+    if parts.username or parts.password:
+        raise ValueError("Links can't contain a username or password")
+    return value
+
+
+HttpUrl = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=2048),
+    AfterValidator(_http_url),
+]
+
+
+def _image_url(value: str) -> str:
+    if not is_safe_image_url(value):
+        raise ValueError("Unsupported image link")
+    return value
+
+
+ImageUrl = Annotated[HttpUrl, AfterValidator(_image_url)]
+ItemTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
+class ItemCreate(StrictModel):
+    title: ItemTitle
+    url: HttpUrl | None = None
+    price: Pence | None = None
+    image_url: ImageUrl | None = None
+
+
+class ItemUpdate(StrictModel):
+    title: ItemTitle | None = None
+    url: HttpUrl | None = None
+    price: Pence | None = None
+    image_url: ImageUrl | None = None
+
+
+class ItemOrder(StrictModel):
+    ids: list[int] = Field(max_length=MAX_ITEMS)
+
+
+class MeUpdate(StrictModel):
+    name: Name | None = None
+    secret_surprise: bool | None = None
+
+
+class LinkPreviewRequest(StrictModel):
+    url: HttpUrl
+
+
+class LinkPreviewOut(BaseModel):
+    title: str | None = None
+    image_url: str | None = None
