@@ -23,6 +23,8 @@ export function DashboardPage() {
   const query = useQuery({
     queryKey: ['admin-group', adminToken],
     queryFn: () => api<AdminGroup>('/admin/group', { token: adminToken }),
+    // The admin watches people join from other devices; refresh when they come back.
+    refetchOnWindowFocus: true,
   })
 
   if (query.isPending) return <LoadingPage />
