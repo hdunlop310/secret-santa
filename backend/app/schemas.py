@@ -205,3 +205,40 @@ class LinkPreviewRequest(StrictModel):
 class LinkPreviewOut(BaseModel):
     title: str | None = None
     image_url: str | None = None
+
+
+class ExclusionPair(BaseModel):
+    giver_id: int
+    giftee_id: int
+
+
+class PersonRef(BaseModel):
+    id: int
+    name: str
+
+
+class Exclusions(BaseModel):
+    show_exclusions: bool
+    participants: list[PersonRef]
+    pairs: list[ExclusionPair]
+
+
+class ExclusionsUpdate(StrictModel):
+    pairs: list[ExclusionPair] = Field(max_length=50 * 49)
+    show_exclusions: bool | None = None
+
+
+class ExclusionsCheckRequest(StrictModel):
+    pairs: list[ExclusionPair] = Field(max_length=50 * 49)
+
+
+class BottleneckOut(BaseModel):
+    side: Literal["give", "receive"]
+    people: list[int]
+    options: list[int]
+
+
+class ExclusionsCheck(BaseModel):
+    possible: bool
+    reason: Literal["too_few", "stuck"] | None = None
+    bottleneck: BottleneckOut | None = None
