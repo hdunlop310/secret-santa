@@ -99,3 +99,38 @@ class TestEmailSafety:
         send_safely(Broken(), EmailMessage("a@example.com", "S", f"http://h/p/{token}", ""))
         assert token not in caplog.text
         assert "ConnectionError" in caplog.text
+
+
+class TestClientIp:
+    def request(self, forwarded=None, peer="10.0.0.9"):
+        from starlette.requests import Request
+
+        headers = [(b"x-forwarded-for", forwarded.encode())] if forwarded else []
+        return Request({"type": "http", "headers": headers, "client": (peer, 1234)})
+
+    def test_without_proxies_uses_the_peer_and_ignores_headers(self, monkeypatch):
+        from app.config import get_settings
+        from app.ratelimit import client_ip
+
+        monkeypatch.setattr(get_settings(), "trusted_proxy_hops", 0)
+        assert client_ip(self.request("1.2.3.4")) == "10.0.0.9"
+
+    def test_one_proxy_takes_the_rightmost_entry(self, monkeypatch):
+        from app.config import get_settings
+        from app.ratelimit import client_ip
+
+        monkeypatch.setattr(get_settings(), "trusted_proxy_hops", 1)
+        # A client trying to spoof its address only controls the left-hand entries.
+        assert client_ip(self.request("6.6.6.6, 203.0.113.7")) == "203.0.113.7"
+        assert client_ip(self.request("203.0.113.7")) == "203.0.113.7"
+        assert client_ip(self.request()) == "10.0.0.9"
+
+
+class TestDatabaseUrl:
+    def test_hosted_urls_get_the_psycopg_driver(self):
+        from app.config import Settings
+
+        for url in ("postgres://u:p@h:5432/db", "postgresql://u:p@h:5432/db"):
+            assert Settings(database_url=url).database_url == "postgresql+psycopg://u:p@h:5432/db"
+        ours = "postgresql+psycopg://u:p@h/db"
+        assert Settings(database_url=ours).database_url == ours

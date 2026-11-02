@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     rate_limit_email_send: int = 20
     rate_limit_link_preview: int = 60
     rate_limit_draw: int = 10
+    # How many reverse proxies sit in front of the API (1 on Render). The client IP for
+    # rate limits is read that many entries from the right of X-Forwarded-For, so a
+    # client can't dodge limits by sending its own header. 0 trusts no header.
+    trusted_proxy_hops: int = 0
+
+    @field_validator("database_url")
+    @classmethod
+    def _use_psycopg(cls, url: str) -> str:
+        # Hosts hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the driver.
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url.removeprefix(prefix)
+        return url
 
     @model_validator(mode="after")
     def _require_real_secrets(self) -> "Settings":

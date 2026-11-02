@@ -10,6 +10,8 @@ from collections import defaultdict, deque
 
 from fastapi import HTTPException, Request, status
 
+from app.config import get_settings
+
 
 class RateLimiter:
     def __init__(self, window_seconds: float = 3600) -> None:
@@ -45,4 +47,12 @@ limiter = RateLimiter()
 
 
 def client_ip(request: Request) -> str:
+    """The caller's IP. Behind N trusted proxies, the Nth X-Forwarded-For entry from the
+    right is the address the outermost proxy saw; anything further left is client-supplied."""
+    hops = get_settings().trusted_proxy_hops
+    if hops > 0:
+        forwarded = [h.strip() for h in request.headers.get("x-forwarded-for", "").split(",")]
+        forwarded = [h for h in forwarded if h]
+        if len(forwarded) >= hops:
+            return forwarded[-hops]
     return request.client.host if request.client else "unknown"
