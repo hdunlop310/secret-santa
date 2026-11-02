@@ -24,3 +24,4 @@ playwright-report/
 .vscode/
 *.log
 *.tsbuildinfo
+.neon

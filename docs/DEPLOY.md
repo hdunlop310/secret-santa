@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | Frontend | Vercel project (root `frontend`) | secretsanta-staging.dunlopdev.com | secretsanta.dunlopdev.com |
 | API | Vercel project (root `backend`), serverless, London (`lhr1`) | secretsanta-api-staging.dunlopdev.com | secretsanta-api.dunlopdev.com |
-| Database | Neon Postgres, London | project `secretsanta-staging` | project `secretsanta` |
+| Database | Neon project `rough-violet-72141371`, London | branch `staging` | branch `production` |
 | Migrations | GitHub Actions (`migrate.yml`) on push | from `main` | from `production` |
 | Scheduled jobs | GitHub Actions (`jobs.yml`), every 15 min | calls staging API | calls production API |
 | Email | Resend, sending from `secretsanta.dunlopdev.com` | | |
@@ -22,10 +22,13 @@ The private repository is https://github.com/hdunlop310/secret-santa with `main`
 
 ## 2. Neon (database)
 
-1. Create a Neon account and two projects, `secretsanta-staging` and `secretsanta`, both in **AWS Europe (London)**, Postgres 17.
-2. For each project, copy two connection strings from the Connect dialog:
-   - the **pooled** one (host contains `-pooler`), for Vercel
-   - the **direct** one, for migrations
+Done for production: the repo is linked to Neon project `rough-violet-72141371` (`neon init`, `neon.ts`), its `production` branch is in London, and all migrations have been applied to it.
+
+For staging, create a branch named `staging` from the Neon console. Don't create it with `neon checkout`: the branch policy in `neon.ts` gives new branches a 7-day expiry, so a checked-out staging branch would delete itself. Then run the "Migrate database" workflow for `main` (step 4).
+
+Each branch has two connection strings (`neon env pull` writes them as `DATABASE_URL` and `DATABASE_URL_UNPOOLED`):
+- **pooled** (host contains `-pooler`): the app's traffic, for Vercel
+- **direct** (no `-pooler`): migrations only; the pooler runs PgBouncer in transaction mode, which migrations can't use
 
 ## 3. Resend (email)
 
@@ -39,7 +42,7 @@ In the repository: Settings, Environments. Create `staging` and `production`, an
 
 | Kind | Name | Value |
 | --- | --- | --- |
-| Secret | `DATABASE_URL` | that environment's Neon **direct** connection string |
+| Secret | `DATABASE_URL` | that environment's Neon branch **direct** (unpooled) connection string |
 | Secret | `CRON_SECRET` | a long random value, e.g. from `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
 | Variable | `API_URL` | `https://secretsanta-api-staging.dunlopdev.com` or `https://secretsanta-api.dunlopdev.com` |
 
@@ -63,7 +66,7 @@ API environment variables (Settings, Environment Variables, Production):
 | Name | Staging | Production |
 | --- | --- | --- |
 | `ENVIRONMENT` | `production` | `production` |
-| `DATABASE_URL` | staging Neon **pooled** string | production Neon **pooled** string |
+| `DATABASE_URL` | staging branch **pooled** string | production branch **pooled** string |
 | `DATABASE_POOLING` | `false` | `false` |
 | `APP_BASE_URL` | `https://secretsanta-staging.dunlopdev.com` | `https://secretsanta.dunlopdev.com` |
 | `API_BASE_URL` | `https://secretsanta-api-staging.dunlopdev.com` | `https://secretsanta-api.dunlopdev.com` |
