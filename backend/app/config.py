@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     rate_limit_group_create: int = 10
     rate_limit_email_send: int = 20
     rate_limit_link_preview: int = 60
+    rate_limit_draw: int = 10
 
     @property
     def cors_origin_list(self) -> list[str]:

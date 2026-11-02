@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
+from app.draw import check_can_draw, check_draw_rate, notify_draw, run_draw
 from app.email import EmailSender, get_email_sender, send_safely, templates
 from app.models import Group, Participant
 from app.ratelimit import client_ip, limiter
@@ -99,6 +100,7 @@ def get_admin_group(group: AdminGroupDep, db: DB) -> AdminGroup:
     return AdminGroup(
         **group_public(group).model_dump(),
         invite_link=invite_link(group),
+        drawn_at=group.drawn_at,
         show_exclusions=group.show_exclusions,
         exclusion_pair_count=exclusion_pair_count(db, group),
         participants=participant_summaries(group),
@@ -156,12 +158,22 @@ def add_participant(
 ) -> ParticipantSummary:
     if group.id != group_id:
         raise NOT_FOUND
-    if group.draw_status == "drawn":
-        raise HTTPException(status.HTTP_409_CONFLICT, "The draw has already happened")
+    drawn = group.draw_status == "drawn"
+    if drawn:
+        check_can_draw(group, body.confirm_redraw)
     count = db.scalar(select(func.count()).where(Participant.group_id == group.id))
     if count >= MAX_PARTICIPANTS:
         raise HTTPException(status.HTTP_409_CONFLICT, "This group is full")
     check_email_rate(request, body.email)
+
+    if db.scalar(
+        select(Participant.id).where(
+            Participant.group_id == group.id, Participant.email == body.email
+        )
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Someone with that email is already in")
+    if drawn:
+        check_draw_rate(group)
 
     token = new_token()
     participant = Participant(
@@ -169,17 +181,24 @@ def add_participant(
     )
     db.add(participant)
     try:
+        if drawn:
+            run_draw(db, group)
         db.commit()
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Someone with that email is already in"
         ) from exc
+    except Exception:
+        db.rollback()
+        raise
     background.add_task(
         send_safely,
         sender,
         templates.invited_by_admin(group, body.name, body.email, participant_link(token)),
     )
+    if drawn:
+        notify_draw(background, sender, group, redraw=True, skip={participant.id})
     return ParticipantSummary(
         id=participant.id,
         name=participant.name,

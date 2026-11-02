@@ -90,3 +90,24 @@ def invited_by_admin(group: Group, name: str, email: str, link: str) -> EmailMes
         ("Open your wish list", link),
     ]
     return _message(email, f"You're invited to {group.name}", blocks)
+
+
+def draw_done(group: Group, name: str, email: str, invite_link: str, redraw: bool) -> EmailMessage:
+    """Tells someone the draw happened. Never names their giftee: that stays behind the link."""
+    if redraw:
+        lead = (
+            f'The names for "{group.name}" have been drawn again, '
+            "so you may be buying for someone new."
+        )
+        subject = f"New draw for {group.name}"
+    else:
+        lead = f'The names for "{group.name}" have been drawn.'
+        subject = f"Names drawn for {group.name}"
+    blocks: list[Block] = [
+        f"Hi {name},",
+        f"{lead} {_facts(group)}.",
+        "Open your personal link from your earlier email to see who you're buying for.",
+        "Lost it? Enter your email here and we'll send a new one.",
+        ("Get a new link", invite_link),
+    ]
+    return _message(email, subject, blocks)

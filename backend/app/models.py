@@ -41,6 +41,7 @@ class Group(Base):
     draw_status: Mapped[str] = mapped_column(
         String(16), default="not_drawn", server_default="not_drawn"
     )
+    drawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     participants: Mapped[list["Participant"]] = relationship(
@@ -64,6 +65,8 @@ class Participant(Base):
     # Null until the person joins via the invite link or first opens a link the admin sent.
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Last change to items or secret surprise; drives the giver's "updated" note.
+    wishlist_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     group: Mapped[Group] = relationship(back_populates="participants")
     items: Mapped[list["WishlistItem"]] = relationship(

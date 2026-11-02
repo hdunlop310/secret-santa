@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Literal
 from urllib.parse import urlsplit
 
@@ -104,6 +104,7 @@ class ParticipantSummary(BaseModel):
 
 class AdminGroup(GroupPublic):
     invite_link: str
+    drawn_at: datetime | None
     show_exclusions: bool
     exclusion_pair_count: int
     participants: list[ParticipantSummary]
@@ -126,6 +127,7 @@ class JoinRequest(StrictModel):
 class AddParticipant(StrictModel):
     name: Name
     email: Email
+    confirm_redraw: bool = False
 
 
 class WishlistItemOut(BaseModel):
@@ -242,3 +244,28 @@ class ExclusionsCheck(BaseModel):
     possible: bool
     reason: Literal["too_few", "stuck"] | None = None
     bottleneck: BottleneckOut | None = None
+
+
+class DrawRequest(StrictModel):
+    confirm_redraw: bool = False
+
+
+class DrawResult(BaseModel):
+    """Deliberately says nothing about who has whom."""
+
+    draw_status: str
+    drawn_at: datetime | None
+    participant_count: int
+
+
+class GifteeOut(BaseModel):
+    name: str
+    secret_surprise: bool
+    items: list[WishlistItemOut]
+    updated_at: datetime | None
+    updated_since_draw: bool
+
+
+class GifteeResponse(BaseModel):
+    drawn: bool
+    giftee: GifteeOut | None = None

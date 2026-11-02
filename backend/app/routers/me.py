@@ -48,10 +48,16 @@ def get_me(participant: CurrentParticipant, db: DB) -> Me:
 def update_me(body: MeUpdate, participant: CurrentParticipant, db: DB) -> Me:
     if body.name is not None:
         participant.name = body.name
-    if body.secret_surprise is not None:
+    if body.secret_surprise is not None and body.secret_surprise != participant.secret_surprise:
         participant.secret_surprise = body.secret_surprise
+        _touch(participant)
     db.commit()
     return _me(participant)
+
+
+def _touch(participant: Participant) -> None:
+    """Record a wish-list change so the giver can see it was updated."""
+    participant.wishlist_updated_at = datetime.now(UTC)
 
 
 def _own_item(db: DB, participant: Participant, item_id: int) -> WishlistItem:
@@ -78,6 +84,7 @@ def add_item(body: ItemCreate, participant: CurrentParticipant, db: DB) -> Wishl
         **body.model_dump(),
     )
     db.add(item)
+    _touch(participant)
     db.commit()
     return WishlistItemOut.model_validate(item, from_attributes=True)
 
@@ -94,6 +101,7 @@ def update_item(
         changes["image_url"] = None  # a new link makes the old preview image wrong
     for field, value in changes.items():
         setattr(item, field, value)
+    _touch(participant)
     db.commit()
     return WishlistItemOut.model_validate(item, from_attributes=True)
 
@@ -101,6 +109,7 @@ def update_item(
 @router.delete("/me/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(item_id: int, participant: CurrentParticipant, db: DB) -> None:
     db.delete(_own_item(db, participant, item_id))
+    _touch(participant)
     db.commit()
 
 
@@ -115,6 +124,7 @@ def reorder_items(
         )
     for position, item_id in enumerate(body.ids, start=1):
         items[item_id].sort_order = position
+    _touch(participant)
     db.commit()
     return [WishlistItemOut.model_validate(items[i], from_attributes=True) for i in body.ids]
 
