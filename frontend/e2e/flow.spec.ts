@@ -6,19 +6,22 @@ const email = (name: string) => `e2e-${run}-${name.toLowerCase()}@example.com`
 
 type MailSummary = { ID: string; Subject: string; To: { Address: string }[] }
 
-/** The newest personal link emailed to this address. */
-async function personalLink(to: string): Promise<string> {
+/** The button link in the newest email to this address whose subject matches. */
+async function emailButton(to: string, subject: RegExp): Promise<string> {
   for (let attempt = 0; attempt < 20; attempt++) {
     const list = (await (await fetch(`${MAILPIT}/api/v1/messages?limit=200`)).json()) as { messages: MailSummary[] }
-    const message = list.messages.find((m) => m.To[0]?.Address === to && /link|invited/i.test(m.Subject))
+    const message = list.messages.find((m) => m.To[0]?.Address === to && subject.test(m.Subject))
     if (message) {
       const full = (await (await fetch(`${MAILPIT}/api/v1/message/${message.ID}`)).json()) as { Text: string }
-      const match = full.Text.match(/https?:\/\/\S+\/p\/[A-Za-z0-9_-]+/)
-      if (match) return new URL(match[0]).pathname
+      const match = full.Text.match(/https?:\/\/\S+\/open\/\S+/)
+      if (match) {
+        const url = new URL(match[0])
+        return url.pathname + url.search
+      }
     }
     await new Promise((r) => setTimeout(r, 250))
   }
-  throw new Error(`no personal link emailed to ${to}`)
+  throw new Error(`no email matching ${subject} sent to ${to}`)
 }
 
 async function newPage(browser: Browser): Promise<Page> {
@@ -43,14 +46,20 @@ test('create, join, wish lists, exclusions, draw and reveal', async ({ browser }
   await expect(admin.getByLabel("I'm taking part too")).toBeChecked()
   const created = admin.waitForResponse((r) => r.url().endsWith('/groups') && r.request().method() === 'POST')
   await admin.getByRole('button', { name: 'Create group' }).click()
-  const links = (await (await created).json()) as { admin_link: string; invite_link: string; participant_link: string }
+  const links = (await (await created).json()) as { admin_link: string; invite_link: string }
   await expect(admin.getByRole('heading', { name: 'Your group is ready' })).toBeVisible()
   await admin.getByRole('link', { name: 'Go to your group' }).click()
   await expect(admin.getByRole('heading', { name: `E2E Santa ${run}` })).toBeVisible()
 
-  // Alex and Priya join from the invite link in their own browsers.
+  // Sam's one link also holds Sam's own wish list.
+  await admin.getByRole('link', { name: 'Open your wish list' }).click()
+  await expect(admin.getByRole('heading', { name: 'Your wish list' })).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Leave this Secret Santa' })).toBeHidden()
+  await admin.getByRole('link', { name: 'Back to group' }).click()
+
+  // Alex and Priya join from the invite link in their own browsers and land on their lists.
   const people: Record<string, Page> = { Sam: await newPage(browser) }
-  await people.Sam.goto(new URL(links.participant_link).pathname)
+  await people.Sam.goto(`${new URL(links.admin_link).pathname}/wishlist`)
   for (const name of ['Alex', 'Priya']) {
     const page = await newPage(browser)
     await page.goto(new URL(links.invite_link).pathname)
@@ -58,8 +67,7 @@ test('create, join, wish lists, exclusions, draw and reveal', async ({ browser }
     await page.getByLabel('Your name').fill(name)
     await page.getByLabel('Your email').fill(email(name))
     await page.getByRole('button', { name: 'Join this Secret Santa' }).click()
-    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible()
-    await page.goto(await personalLink(email(name)))
+    await expect(page.getByRole('heading', { name: 'Your wish list' })).toBeVisible()
     people[name] = page
   }
 
@@ -102,6 +110,16 @@ test('create, join, wish lists, exclusions, draw and reveal', async ({ browser }
   // Reveal: everyone sees one giftee, never themselves, and the exclusion holds.
   const giftees: Record<string, string> = {}
   for (const [name, page] of Object.entries(people)) {
+    if (name === 'Alex') {
+      // Straight from the button in the draw email, on a fresh browser.
+      const fresh = await newPage(browser)
+      await fresh.goto(await emailButton(email(name), /drawn/i))
+      await expect(fresh.getByText("You're Secret Santa for")).toBeVisible()
+      await page.close()
+      people[name] = fresh
+      giftees[name] = (await fresh.getByRole('heading', { level: 1 }).textContent())!.trim()
+      continue
+    }
     await page.reload()
     await page.getByRole('link', { name: "See who you're buying for" }).click()
     await expect(page.getByText("You're Secret Santa for")).toBeVisible()

@@ -95,10 +95,14 @@ export type GroupCreate = {
 
 export type GroupCreated = {
   group_id: number
+  /** The organiser's one link: it runs the group and holds their own wish list. */
   admin_link: string
   invite_link: string
-  participant_link: string | null
 }
+
+export type JoinResult = { status: 'joined' | 'sent'; participant_link: string | null }
+
+export type OpenedLink = { kind: 'admin' | 'participant'; link: string }
 
 export type InvitePreview = {
   group_name: string

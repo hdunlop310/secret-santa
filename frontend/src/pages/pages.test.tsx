@@ -4,6 +4,7 @@ import type { AdminGroup } from '../api'
 import { mockFetch, renderAt } from '../test/render'
 import { CreateGroupPage } from './CreateGroup'
 import { DashboardPage } from './Dashboard'
+import { savedGroups } from '../remember'
 import { CheckEmailPage, JoinPage } from './Join'
 
 const future = '2099-12-20'
@@ -22,14 +23,13 @@ describe('CreateGroupPage', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('submits pence and shows the links once', async () => {
+  it('submits pence and shows the one link', async () => {
     const fetch = mockFetch(() => ({
       status: 201,
       body: {
         group_id: 1,
         admin_link: 'http://localhost:5173/g/ADMIN',
         invite_link: 'http://localhost:5173/join/INV',
-        participant_link: 'http://localhost:5173/p/ME',
       },
     }))
     renderAt('/new', [{ path: '/new', element: <CreateGroupPage /> }])
@@ -46,8 +46,9 @@ describe('CreateGroupPage', () => {
     const body = JSON.parse(fetch.mock.calls[0][1]!.body as string)
     expect(body).toMatchObject({ budget_min: 1500, budget_max: 2550, admin_participates: true, message: null })
     expect(screen.getByText('localhost:5173/g/ADMIN')).toBeInTheDocument()
-    expect(screen.getByText('localhost:5173/p/ME')).toBeInTheDocument()
+    expect(screen.queryByText(/\/p\//)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Go to your group' })).toHaveAttribute('href', '/g/ADMIN')
+    expect(savedGroups()).toMatchObject([{ kind: 'admin', token: 'ADMIN', groupId: 1, name: 'Family' }])
   })
 })
 
@@ -96,6 +97,7 @@ describe('DashboardPage', () => {
     mockFetch(() => ({ status: 404, body: { detail: 'Link not found' } }))
     renderAt('/g/BAD', [{ path: '/g/:adminToken', element: <DashboardPage /> }])
     expect(await screen.findByRole('heading', { name: "This link doesn't work" })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Get a new link' })).toHaveAttribute('href', '/lost')
   })
 })
 
@@ -103,9 +105,23 @@ describe('JoinPage', () => {
   const routes = [
     { path: '/join/:inviteToken', element: <JoinPage /> },
     { path: '/join/:inviteToken/check-email', element: <CheckEmailPage /> },
+    { path: '/p/:participantToken', element: <p>Wish list page</p> },
   ]
 
-  it('joins and then offers to re-send the link', async () => {
+  it('goes straight to the new wish list after joining', async () => {
+    mockFetch((_url, init) =>
+      init.method === 'POST'
+        ? { status: 201, body: { status: 'joined', participant_link: 'http://localhost:5173/p/NEW' } }
+        : { body: { group_name: 'G', admin_name: 'Sam', gift_date: '2026-12-20', budget_min: 0, budget_max: 1000, message: null } },
+    )
+    renderAt('/join/INV', routes)
+    await userEvent.type(await screen.findByLabelText('Your name'), 'Alex')
+    await userEvent.type(screen.getByLabelText('Your email'), 'alex@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Join this Secret Santa' }))
+    expect(await screen.findByText('Wish list page')).toBeInTheDocument()
+  })
+
+  it('emails the link when the address is already in, and offers to re-send it', async () => {
     const fetch = mockFetch((_url, init) =>
       init.method === 'POST'
         ? { status: 202, body: { status: 'sent' } }
@@ -133,6 +149,7 @@ describe('JoinPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Check your email' })).toBeInTheDocument()
     expect(screen.getByText('alex@example.com')).toBeInTheDocument()
+    expect(screen.getByText(/is already in this group/)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Re-send link' }))
     expect(await screen.findByRole('button', { name: 'Sent again' })).toBeInTheDocument()

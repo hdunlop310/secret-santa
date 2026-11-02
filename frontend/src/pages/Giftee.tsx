@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api, type GifteeResponse, type Me, type WishlistItem } from '../api'
 import { isOverBudget } from '../components/GiftTag'
 import { HeaderBand } from '../components/HeaderBand'
 import { ErrorState, LoadingPage, MessagePage } from '../components/States'
 import { formatBudget, formatDate, formatPence, timeAgo } from '../format'
+import { useMemberLinks } from '../links'
+import { useRememberGroup } from '../remember'
 
 function GifteeItem({ item, budgetMax }: { item: WishlistItem; budgetMax: number }) {
   const over = isOverBudget(item, budgetMax)
@@ -42,8 +44,10 @@ function GifteeItem({ item, budgetMax }: { item: WishlistItem; budgetMax: number
 }
 
 export function GifteePage() {
-  const { participantToken: token = '' } = useParams()
+  const links = useMemberLinks()
+  const { token } = links
   const me = useQuery({ queryKey: ['me', token], queryFn: () => api<Me>('/me', { token }) })
+  useRememberGroup(links.organiser ? 'admin' : 'participant', token, me.data?.group, me.error)
   const giftee = useQuery({
     queryKey: ['giftee', token],
     queryFn: () => api<GifteeResponse>('/me/giftee', { token }),
@@ -56,7 +60,7 @@ export function GifteePage() {
 
   const { group } = me.data
   const wishListLink = (
-    <Link className="btn btn--secondary" to={`/p/${token}`}>
+    <Link className="btn btn--secondary" to={links.wishList}>
       Your wish list
     </Link>
   )
@@ -83,34 +87,45 @@ export function GifteePage() {
           </div>
         </div>
       </HeaderBand>
-      <div className="content" style={{ gap: 10 }}>
-        {person.updated_since_draw && person.updated_at && !person.secret_surprise && (
-          <div className="update-note">
-            <span className="badge-new">New</span>
-            <span>
-              {person.name} updated this list {timeAgo(person.updated_at)}
-            </span>
-          </div>
-        )}
-        {person.secret_surprise ? (
-          <p className="note-card">{person.name} wants to be surprised</p>
-        ) : (
-          <>
-            <h2 className="section-title">{person.name}'s wish list</h2>
-            {person.items.length === 0 ? (
-              <p className="note-card muted">{person.name} hasn't added anything yet</p>
+      <div className="content content--tight">
+        <div className="layout layout--interleave">
+          <div className="layout__main">
+            {person.secret_surprise ? (
+              <p className="note-card">{person.name} wants to be surprised</p>
             ) : (
-              <ul className="items" aria-label={`${person.name}'s wish list`}>
-                {person.items.map((item) => (
-                  <li key={item.id}>
-                    <GifteeItem item={item} budgetMax={group.budget_max} />
-                  </li>
-                ))}
-              </ul>
+              <>
+                <h2 className="section-title">{person.name}'s wish list</h2>
+                {person.items.length === 0 ? (
+                  <p className="note-card muted">{person.name} hasn't added anything yet</p>
+                ) : (
+                  <ul className="items items--grid" aria-label={`${person.name}'s wish list`}>
+                    {person.items.map((item) => (
+                      <li key={item.id}>
+                        <GifteeItem item={item} budgetMax={group.budget_max} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
-          </>
-        )}
-        {wishListLink}
+          </div>
+          <div className="layout__side">
+            {person.updated_since_draw && person.updated_at && !person.secret_surprise && (
+              <div className="update-note m-first">
+                <span className="badge-new">New</span>
+                <span>
+                  {person.name} updated this list {timeAgo(person.updated_at)}
+                </span>
+              </div>
+            )}
+            {links.organiser && (
+              <Link className="btn btn--secondary" to={links.home}>
+                Back to group
+              </Link>
+            )}
+            {wishListLink}
+          </div>
+        </div>
       </div>
     </main>
   )

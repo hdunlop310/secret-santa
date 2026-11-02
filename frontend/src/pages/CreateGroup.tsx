@@ -5,7 +5,9 @@ import { api, type GroupCreate, type GroupCreated } from '../api'
 import { CopyLink } from '../components/CopyLink'
 import { Field, TextAreaField } from '../components/Field'
 import { HeaderBand } from '../components/HeaderBand'
+import { SavedGroupsCard, useSavedGroups } from '../components/SavedGroups'
 import { parsePounds, todayIso } from '../format'
+import { rememberGroup } from '../remember'
 
 type Form = {
   name: string
@@ -64,7 +66,12 @@ export function CreateGroupPage() {
   const [errors, setErrors] = useState<Errors>({})
   const create = useMutation({
     mutationFn: (payload: GroupCreate) => api<GroupCreated>('/groups', { method: 'POST', body: payload }),
+    onSuccess: (created, payload) => {
+      const token = new URL(created.admin_link).pathname.split('/').pop() ?? ''
+      rememberGroup({ kind: 'admin', token, groupId: created.group_id, name: payload.name, giftDate: payload.gift_date })
+    },
   })
+  const saved = useSavedGroups()
 
   if (create.data) return <GroupCreatedView created={create.data} />
 
@@ -78,12 +85,21 @@ export function CreateGroupPage() {
     if (payload) create.mutate(payload)
   }
 
+  const hasSaved = saved.groups.length > 0
+  const lostLink = (
+    <Link className="link-btn" style={{ alignSelf: 'center' }} to="/lost">
+      Lost your link?
+    </Link>
+  )
+
   return (
-    <main className="page">
+    <main className={hasSaved ? 'page' : 'page page--narrow'}>
       <HeaderBand aside="Step 1 of 2">
         <h1 className="band__title">Create a Secret Santa</h1>
       </HeaderBand>
-      <form className="content content--form" onSubmit={submit} noValidate>
+      <div className="content content--form">
+      <div className="layout layout--form">
+      <form className="layout__main stack" onSubmit={submit} noValidate>
         <Field label="Group name" placeholder="e.g. Family Secret Santa" value={form.name} onChange={set('name')} error={errors.name} maxLength={80} />
         <Field label="Gift exchange date" type="date" min={todayIso()} value={form.gift_date} onChange={set('gift_date')} error={errors.gift_date} />
         <div className="grid-2">
@@ -115,7 +131,16 @@ export function CreateGroupPage() {
         <button type="submit" className="btn btn--primary btn--block" disabled={create.isPending}>
           {create.isPending ? 'Creating...' : 'Create group'}
         </button>
+        {!hasSaved && lostLink}
       </form>
+      {hasSaved && (
+        <aside className="layout__side layout__side--first">
+          <SavedGroupsCard groups={saved.groups} onForget={saved.forget} />
+          {lostLink}
+        </aside>
+      )}
+      </div>
+      </div>
     </main>
   )
 }
@@ -123,14 +148,13 @@ export function CreateGroupPage() {
 function GroupCreatedView({ created }: { created: GroupCreated }) {
   const adminPath = new URL(created.admin_link).pathname
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <HeaderBand aside="Step 2 of 2">
         <h1 className="band__title">Your group is ready</h1>
-        <p className="band__facts">We've emailed you these links too.</p>
+        <p className="band__facts">We've emailed you this link too.</p>
       </HeaderBand>
       <div className="content">
-        <CopyLink label="Your admin link" url={created.admin_link} />
-        {created.participant_link && <CopyLink label="Your personal link" url={created.participant_link} />}
+        <CopyLink label="Your link" url={created.admin_link} />
         <Link className="btn btn--primary btn--block" to={adminPath}>
           Go to your group
         </Link>

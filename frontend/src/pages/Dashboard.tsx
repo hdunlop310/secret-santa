@@ -11,6 +11,7 @@ import { HeaderBand } from '../components/HeaderBand'
 import { PeopleCard } from '../components/People'
 import { ErrorState, LoadingPage } from '../components/States'
 import { daysToGo, formatBudget, formatDate, formatDateTime } from '../format'
+import { forgetGroup, useRememberGroup } from '../remember'
 
 const MIN_PEOPLE = 3
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -58,6 +59,7 @@ export function DashboardPage() {
   const [newEmail, setNewEmail] = useState('')
   const [addErrors, setAddErrors] = useState<{ name?: string; email?: string }>({})
 
+  useRememberGroup('admin', token, query.data, query.error)
   const refresh = () => queryClient.invalidateQueries({ queryKey: key })
   const groupId = query.data?.id
 
@@ -73,6 +75,7 @@ export function DashboardPage() {
   const deleteGroup = useMutation({
     mutationFn: () => api('/admin/group', { method: 'DELETE', token }),
     onSuccess: () => {
+      forgetGroup(token)
       queryClient.removeQueries({ queryKey: key })
       navigate('/deleted', { replace: true })
     },
@@ -102,6 +105,7 @@ export function DashboardPage() {
   const pairs = group.exclusion_pair_count
   const drawn = group.draw_status === 'drawn'
   const people = group.participants
+  const me = people.find((p) => p.is_admin)
 
   function submitAdd(e: FormEvent) {
     e.preventDefault()
@@ -170,70 +174,94 @@ export function DashboardPage() {
         <span className="pill">{daysToGo(group.days_to_go)}</span>
       </HeaderBand>
       <div className="content">
-        <CopyLink label="Invite link" url={group.invite_link} />
-        <PeopleCard
-          people={people}
-          editing={editing}
-          onToggleEdit={() => setEditing((e) => !e)}
-          onRemove={(person) => setPending({ kind: 'remove', person })}
-        >
-          <form className="add-person" onSubmit={submitAdd} noValidate aria-label="Add someone">
-            <div className="grid-2">
-              <Field label="Name" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)} error={addErrors.name} />
-              <Field label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} error={addErrors.email} />
+        <div className="layout layout--interleave">
+          <div className="layout__main">
+            <PeopleCard
+              people={people}
+              editing={editing}
+              onToggleEdit={() => setEditing((e) => !e)}
+              onRemove={(person) => setPending({ kind: 'remove', person })}
+            >
+              <form className="add-person" onSubmit={submitAdd} noValidate aria-label="Add someone">
+                <div className="grid-2">
+                  <Field label="Name" value={newName} maxLength={60} onChange={(e) => setNewName(e.target.value)} error={addErrors.name} />
+                  <Field label="Email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} error={addErrors.email} />
+                </div>
+                {add.error && !pending && (
+                  <p className="alert" role="alert" style={{ margin: 0 }}>
+                    {add.error.message}
+                  </p>
+                )}
+                <button type="submit" className="btn btn--primary" disabled={add.isPending}>
+                  Add
+                </button>
+              </form>
+            </PeopleCard>
+          </div>
+          <div className="layout__side">
+            <div className="m-first">
+              <CopyLink label="Invite link" url={group.invite_link} />
             </div>
-            {add.error && !pending && (
+            {me && drawn && (
+              <Link className="btn btn--main btn--block m-first" to={`/g/${token}/giftee`}>
+                See who you're buying for
+              </Link>
+            )}
+            {me && (
+              <div className="card row-card m-first">
+                <div className="row-card__text">
+                  <span style={{ fontWeight: 700 }}>Your wish list</span>
+                  <span className="row-card__sub">{me.status === 'wish_list_in' ? 'Added' : 'Nothing added yet'}</span>
+                </div>
+                <Link className="btn btn--secondary" to={`/g/${token}/wishlist`} aria-label="Open your wish list">
+                  Open
+                </Link>
+              </div>
+            )}
+            <div className="card row-card">
+              <div className="row-card__text">
+                <span style={{ fontWeight: 700 }}>Exclusions</span>
+                <span className="row-card__sub">
+                  {pairs === 0 ? 'No exclusions yet' : pairs === 1 ? "1 pair can't be matched" : `${pairs} pairs can't be matched`}
+                </span>
+              </div>
+              <Link className="btn btn--secondary" to={`/g/${token}/exclusions`} aria-label="Edit exclusions">
+                Edit
+              </Link>
+            </div>
+
+            {draw.error && !pending && (
               <p className="alert" role="alert" style={{ margin: 0 }}>
-                {add.error.message}
+                {drawErrorMessage(draw.error, people)}
               </p>
             )}
-            <button type="submit" className="btn btn--primary" disabled={add.isPending}>
-              Add
+
+            {drawn ? (
+              <div className="card row-card drawn-card">
+                <div className="row-card__text">
+                  <strong>Names drawn</strong>
+                  {group.drawn_at && <span className="row-card__sub">{formatDateTime(group.drawn_at)}</span>}
+                </div>
+                <button type="button" className="btn btn--secondary" onClick={() => setPending({ kind: 'redraw' })}>
+                  Redraw
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--main btn--block"
+                disabled={people.length < MIN_PEOPLE || draw.isPending}
+                onClick={() => draw.mutate(false)}
+              >
+                <GiftIcon />
+                {draw.isPending ? 'Drawing...' : 'Run the draw'}
+              </button>
+            )}
+            <button type="button" className="link-btn link-btn--danger" style={{ alignSelf: 'center' }} onClick={() => setPending({ kind: 'delete' })}>
+              Delete this group
             </button>
-          </form>
-        </PeopleCard>
-        <div className="card row-card">
-          <div className="row-card__text">
-            <span style={{ fontWeight: 700 }}>Exclusions</span>
-            <span className="row-card__sub">
-              {pairs === 0 ? 'No exclusions yet' : pairs === 1 ? "1 pair can't be matched" : `${pairs} pairs can't be matched`}
-            </span>
           </div>
-          <Link className="btn btn--secondary" to={`/g/${token}/exclusions`} aria-label="Edit exclusions">
-            Edit
-          </Link>
         </div>
-
-        {draw.error && !pending && (
-          <p className="alert" role="alert" style={{ margin: 0 }}>
-            {drawErrorMessage(draw.error, people)}
-          </p>
-        )}
-
-        {drawn ? (
-          <div className="card row-card drawn-card">
-            <div className="row-card__text">
-              <strong>Names drawn</strong>
-              {group.drawn_at && <span className="row-card__sub">{formatDateTime(group.drawn_at)}</span>}
-            </div>
-            <button type="button" className="btn btn--secondary" onClick={() => setPending({ kind: 'redraw' })}>
-              Redraw
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="btn btn--main btn--block"
-            disabled={people.length < MIN_PEOPLE || draw.isPending}
-            onClick={() => draw.mutate(false)}
-          >
-            <GiftIcon />
-            {draw.isPending ? 'Drawing...' : 'Run the draw'}
-          </button>
-        )}
-        <button type="button" className="link-btn link-btn--danger" style={{ alignSelf: 'center' }} onClick={() => setPending({ kind: 'delete' })}>
-          Delete this group
-        </button>
       </div>
 
       {celebrate && <Confetti onDone={() => setCelebrate(false)} />}

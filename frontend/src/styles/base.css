@@ -1031,3 +1031,170 @@ a.tag__link:hover {
     }
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Shared helpers
+   --------------------------------------------------------------------------- */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.content--tight {
+  padding-top: 14px;
+  gap: 10px;
+}
+.band__title--sub {
+  font-size: 28px;
+}
+
+/* Groups remembered on this device (home page). */
+.saved {
+  padding: 12px 14px 6px;
+  gap: 4px;
+}
+.saved__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.saved__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-top: 1.5px solid var(--border-row);
+}
+.saved__row:first-child {
+  border-top: none;
+}
+.saved__link {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--tap);
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: var(--ink);
+  text-decoration: none;
+}
+.saved__link:hover .saved__name {
+  color: var(--berry);
+}
+.saved__name {
+  font-weight: 700;
+  color: var(--pine);
+  overflow-wrap: anywhere;
+}
+.saved__meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Two-column layout. On phones the columns dissolve into the page's single
+   column (display: contents), and .m-first pulls an item to the top, so the
+   phone order stays as designed. From 900px the side column sits on the right.
+   --------------------------------------------------------------------------- */
+.layout,
+.layout--interleave .layout__main,
+.layout--interleave .layout__side {
+  display: contents;
+}
+.layout--form .layout__main,
+.layout--form .layout__side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.m-first,
+.layout__side--first {
+  order: -1;
+}
+.desk-only {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .page {
+    --desk: 1080px;
+    max-width: none;
+    padding-bottom: 56px;
+  }
+  .page--medium {
+    --desk: 760px;
+  }
+  .page--narrow {
+    --desk: 560px;
+  }
+
+  /* The band runs the full width; its content lines up with the page content. */
+  .band {
+    padding: 22px max(32px, calc((100% - var(--desk)) / 2 + 32px)) 34px;
+    border-radius: 0 0 40px 40px;
+    gap: 12px;
+  }
+  .band--tall {
+    padding-bottom: 44px;
+  }
+  .band--compact {
+    padding-top: 10px;
+    padding-bottom: 28px;
+  }
+  .band__title {
+    font-size: 40px;
+  }
+  .band--tall .band__title {
+    font-size: 46px;
+  }
+  .band__title--sub {
+    font-size: 34px;
+  }
+  .band__facts {
+    font-size: 15px;
+  }
+
+  .content,
+  .content--form,
+  .content--tight {
+    width: 100%;
+    max-width: calc(var(--desk) + 64px);
+    margin: 0 auto;
+    padding: 28px 32px 0;
+    gap: 14px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 24px;
+    align-items: start;
+  }
+  .page--narrow .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .layout--interleave .layout__main,
+  .layout--interleave .layout__side {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .layout__side {
+    position: sticky;
+    top: 24px;
+  }
+  .m-first,
+  .layout__side--first {
+    order: 0;
+  }
+  .desk-only {
+    display: block;
+  }
+
+  /* A giver's view of a wish list reads better as a grid of tags. */
+  .items--grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}

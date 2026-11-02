@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { api, type InvitePreview } from '../api'
+import { api, type InvitePreview, type JoinResult } from '../api'
 import { Field } from '../components/Field'
 import { HeaderBand } from '../components/HeaderBand'
 import { ErrorState, LoadingPage, MessagePage } from '../components/States'
@@ -13,7 +13,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function useJoin(inviteToken: string) {
   return useMutation({
-    mutationFn: (body: JoinBody) => api(`/join/${inviteToken}`, { method: 'POST', body }),
+    mutationFn: (body: JoinBody) => api<JoinResult>(`/join/${inviteToken}`, { method: 'POST', body }),
   })
 }
 
@@ -43,12 +43,20 @@ export function JoinPage() {
     if (next.name || next.email) return
     const body = { name: name.trim(), email: email.trim() }
     join.mutate(body, {
-      onSuccess: () => navigate('check-email', { state: body }),
+      onSuccess: (result) => {
+        // New people go straight to their wish list. If the email is already in the
+        // group, the link only goes to that inbox.
+        if (result.status === 'joined' && result.participant_link) {
+          navigate(new URL(result.participant_link).pathname, { replace: true })
+        } else {
+          navigate('check-email', { state: body })
+        }
+      },
     })
   }
 
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <HeaderBand tall>
         <div className="band__stack band__stack--tight">
           <span className="band__eyebrow">You're invited</span>
@@ -89,7 +97,7 @@ export function CheckEmailPage() {
   if (!body) {
     return (
       <MessagePage title="Check your email">
-        <p style={{ margin: 0 }}>We've sent you your personal link.</p>
+        <p style={{ margin: 0 }}>We've sent you your link.</p>
       </MessagePage>
     )
   }
@@ -97,7 +105,7 @@ export function CheckEmailPage() {
   return (
     <MessagePage title="Check your email">
       <p style={{ margin: 0 }}>
-        We've sent your personal link to <strong>{body.email}</strong>.
+        <strong>{body.email}</strong> is already in this group. We've sent its link there.
       </p>
       {resend.error && (
         <p className="alert" role="alert" style={{ margin: 0 }}>

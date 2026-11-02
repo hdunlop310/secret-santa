@@ -143,7 +143,7 @@ function ExclusionsEditor({ token, groupId, initial }: { token: string; groupId:
   }
 
   return (
-    <main className="page">
+    <main className="page page--medium">
       <HeaderBand
         compact
         top={
@@ -157,7 +157,7 @@ function ExclusionsEditor({ token, groupId, initial }: { token: string; groupId:
           Who can't be matched?
         </h1>
       </HeaderBand>
-      <div className="content" style={{ paddingTop: 14, gap: 10 }}>
+      <div className="content content--tight">
         <div className="grid-card">
           <div
             className="xgrid"

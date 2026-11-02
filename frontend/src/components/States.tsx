@@ -5,7 +5,7 @@ import { HeaderBand } from './HeaderBand'
 
 export function LoadingPage() {
   return (
-    <main className="page" aria-busy="true">
+    <main className="page page--narrow" aria-busy="true">
       <HeaderBand>
         <span className="visually-hidden">Loading</span>
         <div style={{ height: 34 }} />
@@ -20,7 +20,7 @@ export function LoadingPage() {
 
 export function MessagePage({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <main className="page">
+    <main className="page page--narrow">
       <HeaderBand>
         <h1 className="band__title">{title}</h1>
       </HeaderBand>
@@ -33,9 +33,12 @@ export function NotFoundPage() {
   return (
     <MessagePage title="This link doesn't work">
       <p className="muted" style={{ margin: 0 }}>
-        It may have been replaced by a newer link.
+        It may be mistyped, or the group may have been deleted.
       </p>
-      <Link className="btn btn--secondary" to="/new">
+      <Link className="btn btn--primary" to="/lost">
+        Get a new link
+      </Link>
+      <Link className="btn btn--secondary" to="/">
         Create a Secret Santa
       </Link>
     </MessagePage>
