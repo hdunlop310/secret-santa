@@ -40,3 +40,21 @@ export function todayIso(): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
+
+/** "just now", "5 minutes ago", "2 hours ago", "3 days ago". */
+export function timeAgo(iso: string, now: Date = new Date()): string {
+  const minutes = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60000))
+  if (minutes < 1) return 'just now'
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'} ago`
+  if (minutes < 60) return plural(minutes, 'minute')
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return plural(hours, 'hour')
+  return plural(Math.round(hours / 24), 'day')
+}
+
+/** ISO timestamp -> "2 Nov 2026" in the viewer's timezone. */
+export function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return formatDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`)
+}

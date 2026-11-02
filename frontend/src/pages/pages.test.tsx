@@ -62,6 +62,7 @@ const adminGroup: AdminGroup = {
   draw_status: 'not_drawn',
   days_to_go: 49,
   invite_link: 'https://secretsanta.dunlopdev.com/join/k3x9',
+  drawn_at: null,
   show_exclusions: false,
   exclusion_pair_count: 2,
   participants: [

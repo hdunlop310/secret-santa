@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api, type Me, type WishlistItem } from '../api'
 import { GiftTag } from '../components/GiftTag'
 import { HeaderBand } from '../components/HeaderBand'
@@ -76,6 +76,11 @@ export function WishListPage() {
         <p className="band__facts">Budget {formatBudget(group.budget_min, group.budget_max)}</p>
       </HeaderBand>
       <div className="content" style={{ paddingTop: 14, gap: 10 }}>
+        {group.draw_status === 'drawn' && (
+          <Link className="btn btn--main btn--block" to={`/p/${token}/giftee`}>
+            See who you're buying for
+          </Link>
+        )}
         <div className="surprise-card">
           <input
             id="surprise"

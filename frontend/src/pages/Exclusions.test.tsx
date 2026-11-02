@@ -1,7 +1,8 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { mockFetch, renderAt } from '../test/render'
-import { describeCheck, ExclusionsPage, type Check } from './Exclusions'
+import { describeCheck, type Check } from '../bottleneck'
+import { ExclusionsPage } from './Exclusions'
 
 const people = [
   { id: 1, name: 'Sam' },

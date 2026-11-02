@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { ParticipantStatus, ParticipantSummary } from '../api'
 
 const CHIP: Record<ParticipantStatus, { label: string; className: string }> = {
@@ -19,15 +20,30 @@ export function Avatar({ name, index }: { name: string; index: number }) {
   )
 }
 
-export function PeopleCard({ people }: { people: ParticipantSummary[] }) {
+type PeopleCardProps = {
+  people: ParticipantSummary[]
+  /** When set, the card shows an Edit / Done toggle for the admin. */
+  editing?: boolean
+  onToggleEdit?: () => void
+  onRemove?: (person: ParticipantSummary) => void
+  /** Extra content at the bottom while editing, e.g. an add form. */
+  children?: ReactNode
+}
+
+export function PeopleCard({ people, editing, onToggleEdit, onRemove, children }: PeopleCardProps) {
   return (
     <section className="card people" aria-labelledby="people-heading">
       <div className="people__head">
         <h2 id="people-heading" className="card__title">
           Who's in
         </h2>
-        <span className="people__count">
-          {people.length === 1 ? '1 person' : `${people.length} people`}
+        <span className="people__head-aside">
+          <span className="people__count">{people.length === 1 ? '1 person' : `${people.length} people`}</span>
+          {onToggleEdit && (
+            <button type="button" className="link-btn" onClick={onToggleEdit} aria-label={editing ? 'Done editing people' : 'Edit people'}>
+              {editing ? 'Done' : 'Edit'}
+            </button>
+          )}
         </span>
       </div>
       <ul>
@@ -38,10 +54,17 @@ export function PeopleCard({ people }: { people: ParticipantSummary[] }) {
               {p.name}
               {p.is_admin && ' (you)'}
             </span>
-            <StatusChip status={p.status} />
+            {editing && onRemove ? (
+              <button type="button" className="link-btn link-btn--danger" onClick={() => onRemove(p)} aria-label={`Remove ${p.name}`}>
+                Remove
+              </button>
+            ) : (
+              <StatusChip status={p.status} />
+            )}
           </li>
         ))}
       </ul>
+      {editing && children}
     </section>
   )
 }

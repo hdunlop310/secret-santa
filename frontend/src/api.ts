@@ -2,9 +2,14 @@ const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  /** Machine-readable reason for 409s, e.g. "confirm_redraw" or "no_valid_draw". */
+  code?: string
+  detail?: Record<string, unknown>
+  constructor(status: number, message: string, detail?: Record<string, unknown>) {
     super(message)
     this.status = status
+    this.detail = detail
+    this.code = typeof detail?.code === 'string' ? detail.code : undefined
   }
 }
 
@@ -28,13 +33,18 @@ export async function api<T>(path: string, { method = 'GET', token, body }: Opti
   }
   if (response.status === 204) return undefined as T
   const data = await response.json().catch(() => null)
-  if (!response.ok) throw new ApiError(response.status, errorMessage(response.status, data))
+  if (!response.ok) {
+    const detail = (data as { detail?: unknown } | null)?.detail
+    const structured = detail && typeof detail === 'object' && !Array.isArray(detail) ? (detail as Record<string, unknown>) : undefined
+    throw new ApiError(response.status, errorMessage(response.status, data), structured)
+  }
   return data as T
 }
 
 function errorMessage(status: number, data: unknown): string {
   const detail = (data as { detail?: unknown } | null)?.detail
   if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object' && 'message' in detail) return String((detail as { message: unknown }).message)
   if (Array.isArray(detail) && detail.length > 0) {
     const msg = String(detail[0]?.msg ?? '')
     return msg.replace(/^Value error, /, '') || 'Please check the form.'
@@ -66,6 +76,7 @@ export type ParticipantSummary = {
 
 export type AdminGroup = GroupPublic & {
   invite_link: string
+  drawn_at: string | null
   show_exclusions: boolean
   exclusion_pair_count: number
   participants: ParticipantSummary[]
@@ -114,3 +125,15 @@ export type Me = {
   group: GroupPublic
   items: WishlistItem[]
 }
+
+export type Giftee = {
+  name: string
+  secret_surprise: boolean
+  items: WishlistItem[]
+  updated_at: string | null
+  updated_since_draw: boolean
+}
+
+export type GifteeResponse = { drawn: boolean; giftee: Giftee | null }
+
+export type Bottleneck = { side: 'give' | 'receive'; people: number[]; options: number[] }

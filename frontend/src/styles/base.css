@@ -787,3 +787,166 @@ a.tag__link:hover {
 .verdict--bad {
   color: var(--berry);
 }
+
+/* Confirmation dialog */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 33, 24, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10;
+}
+.dialog {
+  width: 100%;
+  max-width: 448px;
+  background: var(--cream);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dialog__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 20px;
+}
+.dialog__body {
+  margin: 0;
+  color: var(--ink-soft);
+}
+@media (min-width: 600px) {
+  .dialog-backdrop {
+    align-items: center;
+  }
+}
+
+.people__head-aside {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.people__head-aside .link-btn {
+  margin-right: -12px;
+}
+.add-person {
+  border-top: 1.5px solid var(--border-row);
+  padding: 10px 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.drawn-card .row-card__text strong {
+  font-family: var(--font-heading);
+  font-size: 18px;
+}
+
+/* Giftee reveal */
+.reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 0 4px;
+  text-align: center;
+}
+.reveal__lead {
+  font-size: 14px;
+  color: var(--on-pine-muted);
+}
+.reveal__name {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 60px;
+  line-height: 1.05;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+.reveal .band__pills {
+  justify-content: center;
+  margin-top: 8px;
+}
+.band--reveal {
+  padding-bottom: 28px;
+}
+.update-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-button);
+  padding: 8px 12px;
+  font-size: 14px;
+}
+.badge-new {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--berry);
+  border-radius: 10px;
+  padding: 2px 9px;
+}
+.section-title {
+  margin: 4px 0 0;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+.gtag {
+  position: relative;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px 18px 18px 18px;
+  padding: 12px 14px 12px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.gtag::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--cream);
+  border: 1.5px solid #cdbfa8;
+}
+.gtag__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.gtag__title {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.gtag__price {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pine);
+}
+.gtag__end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.note-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px;
+  margin: 0;
+}
+.link-card {
+  justify-content: space-between;
+}
