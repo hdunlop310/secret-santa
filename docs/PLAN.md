@@ -118,6 +118,16 @@ Draw emails never name the giftee; they point back to the personal link and to t
 
 The "updated" note on the giftee screen says "[Name] updated this list 2 hours ago" rather than the reference's "her list", because the app doesn't know anyone's pronouns.
 
+## Milestone 5 notes
+
+- Jobs (`backend/app/jobs.py`) run every 15 minutes and are idempotent. Daily reminders go out on the first run after 09:00 UTC: invite reminder 3 days after being added (twice at most), wish-list nudge 3 days after joining then weekly while the list is empty, gift date 7 days and 1 day before (after the draw), and "run the draw" to the admin 7, 3 and 1 days before. Groups are deleted 30 days after the gift date.
+- Wish-list-changed emails go to the current giver 15 minutes after a change, then at most one an hour per list. They say "the person you're buying for", not the name.
+- Reminder emails carry no personal link (only its hash is stored); they point to the earlier email and to the invite page, where entering your email sends a fresh link.
+- Unsubscribe links are HMAC-signed with `SECRET_KEY` and stop reminders only. Every email also has `List-Unsubscribe` and one-click headers. The unsubscribe page waits for a tap so mail scanners can't unsubscribe anyone.
+- `DELETE /me`: leaving can't be blocked. After the draw (before the gift date) everyone else is redrawn; if that's impossible the draw is cleared and the admin told. `DELETE /admin/group` deletes everything.
+- The app refuses to start outside development with the dev `SECRET_KEY` or the console email backend.
+- Reminder timing is fixed (decided 2 Nov 2026); the spec's "admin sets cadence" has no designed control.
+
 ## Migrations
 
 1. `0001_initial`: groups, participants, exclusions, assignments, wishlist_items, reminders as in the spec, plus the fields below. Created in M1 so later milestones only add columns.
@@ -131,7 +141,7 @@ The "updated" note on the giftee screen says "[Name] updated this list 2 hours a
 4. **Participant statuses.** The dashboard shows Invited, Joined and Wish list in. "Invited" only exists if the admin can add people by email (F2), so I added `POST /groups/{id}/participants` without a UI. Say if you want an "add by email" form on the dashboard.
 5. **Admin as participant** has two tokens (admin and participant). The admin link is shown once and emailed; the personal link is emailed and shown once after creation.
 6. **Lock date for redraw (F10)** is not defined anywhere. Decided 2 Nov 2026: no separate date; redraw is allowed until the gift date, always with a confirmation and a notification email.
-7. **Reminder cadence (F11)** says the admin sets it but no screen has the control. Proposal: fixed defaults for v1 (wish-list nudge 3 days after joining then weekly, gift-date reminder 7 days and 1 day before), no UI.
+7. **Reminder cadence (F11)** says the admin sets it but no screen has the control. Decided: fixed defaults for v1, no UI (details in Milestone 5 notes).
 8. **Wish-list-changed emails** use the `reminders` table with a `type` and a `send_at`, batched to one per hour per giver. Needs `last_sent_at` logic in M5.
 9. **Rate limiting** has no stack library. I will use a small in-process limiter keyed by IP and by email. That is correct for a single instance; if deployed on more than one, it needs Postgres or Redis. Flagging now so hosting is chosen with that in mind.
 10. **Assignment encryption** ("consider encrypting") is optional. I will skip it in v1: assignments are readable by the database owner either way, and the requirement that matters (no API leaks) is tested.
