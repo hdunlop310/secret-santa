@@ -1,0 +1,35 @@
+name: Migrate database
+
+# Vercel has no pre-deploy step, so database migrations run here on every push to a
+# deployed branch: main -> staging, production -> production. Migrations are written to
+# be additive, so it doesn't matter whether this or the Vercel deploy finishes first.
+on:
+  push:
+    branches: [main, production]
+    paths: ["backend/migrations/**", "backend/app/models.py", ".github/workflows/migrate.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: migrate-${{ github.ref_name }}
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'production' && 'production' || 'staging' }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked --no-dev
+      - name: alembic upgrade head
+        env:
+          # Neon's direct (non-pooled) connection string for this environment.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL is not set for this environment; skipping."
+            exit 0
+          fi
+          uv run alembic upgrade head

@@ -44,4 +44,4 @@ Copy `.env.example` to `.env` first. `make` targets (on Windows without make, ru
 - `make e2e`: Playwright flow against `make dev` (reads emails from Mailpit; raise `RATE_LIMIT_GROUP_CREATE` and `RATE_LIMIT_EMAIL_SEND` in `.env` for repeated runs)
 - `make jobs`: run reminders, wish-list-changed emails and old-group deletion once
 
-Deployment: see `docs/DEPLOY.md` (Cloudflare Pages, Render, GitHub Actions cron, Resend).
+Deployment: see `docs/DEPLOY.md` (Vercel for the API and frontend, Neon Postgres, GitHub Actions for migrations and the cron, Resend). The API runs serverless: send emails before returning, and keep shared state in Postgres, never in process memory.

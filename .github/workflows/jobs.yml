@@ -13,21 +13,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - environment: staging
-            url_secret: STAGING_API_URL
-            token_secret: STAGING_CRON_SECRET
-          - environment: production
-            url_secret: PRODUCTION_API_URL
-            token_secret: PRODUCTION_CRON_SECRET
+        environment: [staging, production]
+    environment: ${{ matrix.environment }}
     steps:
       - name: Run jobs on ${{ matrix.environment }}
         env:
-          API_URL: ${{ secrets[matrix.url_secret] }}
-          CRON_SECRET: ${{ secrets[matrix.token_secret] }}
+          API_URL: ${{ vars.API_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
-            echo "Secrets for ${{ matrix.environment }} not set; skipping."
+            echo "API_URL or CRON_SECRET not set for ${{ matrix.environment }}; skipping."
             exit 0
           fi
           curl --fail-with-body --silent --show-error --max-time 120 \
