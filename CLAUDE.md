@@ -41,3 +41,7 @@ Copy `.env.example` to `.env` first. `make` targets (on Windows without make, ru
 - `make dev`: up, migrate, then API on :8000 and Vite on :5173
 - `make test`: `uv run pytest` in `backend/` (needs Postgres; uses the `santa_test` database) and `npm test` in `frontend/`
 - `make lint`: ruff check and format check, eslint and `tsc -b`
+- `make e2e`: Playwright flow against `make dev` (reads emails from Mailpit; raise `RATE_LIMIT_GROUP_CREATE` and `RATE_LIMIT_EMAIL_SEND` in `.env` for repeated runs)
+- `make jobs`: run reminders, wish-list-changed emails and old-group deletion once
+
+Deployment: see `docs/DEPLOY.md` (Cloudflare Pages, Render, GitHub Actions cron, Resend).

@@ -1,0 +1,9 @@
+# Cloudflare Pages response headers for every route.
+/*
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Robots-Tag: noindex
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' https: data:; connect-src 'self' https://secretsanta-api.dunlopdev.com https://secretsanta-api-staging.dunlopdev.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'

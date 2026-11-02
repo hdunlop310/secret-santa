@@ -1,0 +1,34 @@
+name: Scheduled jobs
+
+# Reminders, wish-list-changed emails and deleting old groups. The job is idempotent, so a
+# late or repeated run is harmless. GitHub may delay scheduled runs by a few minutes.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - environment: staging
+            url_secret: STAGING_API_URL
+            token_secret: STAGING_CRON_SECRET
+          - environment: production
+            url_secret: PRODUCTION_API_URL
+            token_secret: PRODUCTION_CRON_SECRET
+    steps:
+      - name: Run jobs on ${{ matrix.environment }}
+        env:
+          API_URL: ${{ secrets[matrix.url_secret] }}
+          CRON_SECRET: ${{ secrets[matrix.token_secret] }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Secrets for ${{ matrix.environment }} not set; skipping."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 120 \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" "$API_URL/internal/jobs/run"
