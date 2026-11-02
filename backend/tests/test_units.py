@@ -157,8 +157,10 @@ class TestServerlessEngine:
 
         from app import db
         from app.config import get_settings
+        from tests.conftest import TEST_DATABASE_URL
 
         monkeypatch.setattr(get_settings(), "database_pooling", False)
+        monkeypatch.setattr(get_settings(), "database_url", TEST_DATABASE_URL)
         db.get_engine.cache_clear()
         try:
             engine = db.get_engine()
