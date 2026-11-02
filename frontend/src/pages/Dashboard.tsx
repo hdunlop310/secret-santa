@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError, type AdminGroup, type Bottleneck, type ParticipantSummary } from '../api'
 import { describeCheck } from '../bottleneck'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { Confetti } from '../components/Confetti'
 import { CopyLink } from '../components/CopyLink'
 import { Field } from '../components/Field'
 import { HeaderBand } from '../components/HeaderBand'
@@ -26,6 +27,7 @@ function GiftIcon() {
 
 type Pending =
   | { kind: 'redraw' }
+  | { kind: 'delete' }
   | { kind: 'remove'; person: ParticipantSummary }
   | { kind: 'add'; name: string; email: string }
 
@@ -49,6 +51,8 @@ export function DashboardPage() {
     refetchOnWindowFocus: true,
   })
   const [editing, setEditing] = useState(false)
+  const [celebrate, setCelebrate] = useState(false)
+  const navigate = useNavigate()
   const [pending, setPending] = useState<Pending | null>(null)
   const [newName, setNewName] = useState('')
   const [newEmail, setNewEmail] = useState('')
@@ -63,6 +67,14 @@ export function DashboardPage() {
     onSuccess: async () => {
       setPending(null)
       await refresh()
+      setCelebrate(true)
+    },
+  })
+  const deleteGroup = useMutation({
+    mutationFn: () => api('/admin/group', { method: 'DELETE', token }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: key })
+      navigate('/deleted', { replace: true })
     },
   })
   const remove = useMutation({
@@ -108,6 +120,7 @@ export function DashboardPage() {
   function confirmPending() {
     if (!pending) return
     if (pending.kind === 'redraw') draw.mutate(true)
+    if (pending.kind === 'delete') deleteGroup.mutate()
     if (pending.kind === 'remove') remove.mutate({ person: pending.person, confirm: drawn })
     if (pending.kind === 'add') add.mutate({ name: pending.name, email: pending.email, confirm: true })
   }
@@ -117,6 +130,7 @@ export function DashboardPage() {
     draw.reset()
     remove.reset()
     add.reset()
+    deleteGroup.reset()
   }
 
   const dialog =
@@ -132,6 +146,14 @@ export function DashboardPage() {
             busy: remove.isPending,
             error: remove.error,
           }
+        : pending?.kind === 'delete'
+          ? {
+              title: `Delete ${group.name}?`,
+              body: "Everyone's details, wish lists and the draw are deleted. This can't be undone.",
+              label: 'Delete group',
+              busy: deleteGroup.isPending,
+              error: deleteGroup.error,
+            }
         : pending?.kind === 'add'
           ? { title: `Add ${pending.name} and redraw?`, body: REDRAW_BODY, label: 'Add and redraw', busy: add.isPending, error: add.error }
           : null
@@ -209,8 +231,12 @@ export function DashboardPage() {
             {draw.isPending ? 'Drawing...' : 'Run the draw'}
           </button>
         )}
+        <button type="button" className="link-btn link-btn--danger" style={{ alignSelf: 'center' }} onClick={() => setPending({ kind: 'delete' })}>
+          Delete this group
+        </button>
       </div>
 
+      {celebrate && <Confetti onDone={() => setCelebrate(false)} />}
       {dialog && (
         <ConfirmDialog
           title={dialog.title}

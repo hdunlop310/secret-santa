@@ -4,6 +4,7 @@ import { CreateGroupPage } from './pages/CreateGroup'
 import { DashboardPage } from './pages/Dashboard'
 import { ExclusionsPage } from './pages/Exclusions'
 import { GifteePage } from './pages/Giftee'
+import { GroupDeletedPage, LeftPage, UnsubscribePage } from './pages/Unsubscribe'
 import { CheckEmailPage, JoinPage } from './pages/Join'
 import { WishListPage } from './pages/WishList'
 
@@ -18,6 +19,9 @@ export function App() {
       <Route path="/join/:inviteToken/check-email" element={<CheckEmailPage />} />
       <Route path="/p/:participantToken" element={<WishListPage />} />
       <Route path="/p/:participantToken/giftee" element={<GifteePage />} />
+      <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
+      <Route path="/left" element={<LeftPage />} />
+      <Route path="/deleted" element={<GroupDeletedPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

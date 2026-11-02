@@ -950,3 +950,84 @@ a.tag__link:hover {
 .link-card {
   justify-content: space-between;
 }
+
+/* Motion (DESIGN.md "Motion ideas"). Only defined when the viewer hasn't asked for
+   reduced motion, so nothing here runs otherwise. */
+@media (prefers-reduced-motion: no-preference) {
+  .band--falling .band__snow {
+    animation: snowfall 9s linear infinite;
+  }
+  .band--falling .band__snow:nth-child(2n) {
+    animation-duration: 12s;
+    animation-delay: -4s;
+  }
+  .band--falling .band__snow:nth-child(3n) {
+    animation-duration: 10s;
+    animation-delay: -7s;
+  }
+  @keyframes snowfall {
+    from {
+      transform: translate(0, -40px);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    to {
+      transform: translate(-18px, 220px);
+      opacity: 0;
+    }
+  }
+
+  .reveal__name {
+    animation: unwrap 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) 150ms both;
+  }
+  .reveal .band__pills {
+    animation: fade-up 400ms ease-out 650ms both;
+  }
+  @keyframes unwrap {
+    from {
+      transform: scale(0.4) rotate(-6deg);
+      opacity: 0;
+      filter: blur(6px);
+    }
+    to {
+      transform: none;
+      opacity: 1;
+      filter: none;
+    }
+  }
+  @keyframes fade-up {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+  }
+
+  .confetti {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 20;
+  }
+  .confetti span {
+    position: absolute;
+    left: 50%;
+    top: 55%;
+    width: 8px;
+    height: 12px;
+    border-radius: 2px;
+    animation: confetti 1100ms cubic-bezier(0.15, 0.6, 0.4, 1) both;
+  }
+  @keyframes confetti {
+    from {
+      transform: translate(-50%, 0) rotate(0);
+      opacity: 1;
+    }
+    to {
+      transform: translate(var(--x), var(--y)) rotate(var(--r));
+      opacity: 0;
+    }
+  }
+}

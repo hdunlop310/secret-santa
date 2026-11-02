@@ -25,6 +25,14 @@ const SNOW = [
   { top: 146, right: 124, size: 4 },
 ]
 
+// Extra flakes for the tall bands, where the snow falls.
+const FALLING = [
+  { top: 10, right: 200, size: 5 },
+  { top: 40, right: 300, size: 4 },
+  { top: 90, right: 250, size: 6 },
+  { top: 30, right: 160, size: 4 },
+]
+
 type Props = {
   /** Replaces the brand row, e.g. with a back link on admin sub-pages. */
   top?: ReactNode
@@ -38,10 +46,13 @@ type Props = {
 }
 
 export function HeaderBand({ top, aside, tall, roomy, compact, children }: Props) {
-  const className = ['band', tall && 'band--tall', roomy && 'band--roomy', compact && 'band--compact'].filter(Boolean).join(' ')
+  const className = ['band', tall && 'band--tall band--falling', roomy && 'band--roomy', compact && 'band--compact']
+    .filter(Boolean)
+    .join(' ')
+  const flakes = tall ? [...SNOW, ...FALLING] : SNOW
   return (
     <header className={className}>
-      {SNOW.map((s) => (
+      {flakes.map((s) => (
         <span
           key={`${s.top}-${s.right}`}
           aria-hidden="true"

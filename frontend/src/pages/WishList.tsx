@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, type Me, type WishlistItem } from '../api'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { GiftTag } from '../components/GiftTag'
 import { HeaderBand } from '../components/HeaderBand'
 import { ItemForm, type ItemInput } from '../components/ItemForm'
@@ -22,6 +23,8 @@ export function WishListPage() {
   const key = ['me', token]
   const query = useQuery({ queryKey: key, queryFn: () => api<Me>('/me', { token }) })
   const [editing, setEditing] = useState<number | null>(null)
+  const [leaving, setLeaving] = useState(false)
+  const navigate = useNavigate()
 
   const setMe = (update: (me: Me) => Me) => queryClient.setQueryData<Me>(key, (me) => (me ? update(me) : me))
   const refresh = () => queryClient.invalidateQueries({ queryKey: key })
@@ -45,6 +48,13 @@ export function WishListPage() {
   const removeItem = useMutation({
     mutationFn: (id: number) => api(`/me/items/${id}`, { method: 'DELETE', token }),
     onSuccess: (_data, id) => setMe((me) => ({ ...me, items: me.items.filter((i) => i.id !== id) })),
+  })
+  const leave = useMutation({
+    mutationFn: () => api('/me', { method: 'DELETE', token }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: key })
+      navigate('/left', { replace: true })
+    },
   })
   const reorder = useMutation({
     mutationFn: (ids: number[]) => api<WishlistItem[]>('/me/items/order', { method: 'PUT', token, body: { ids } }),
@@ -176,7 +186,28 @@ export function WishListPage() {
             />
           </>
         )}
+        <button type="button" className="link-btn link-btn--danger" style={{ alignSelf: 'center' }} onClick={() => setLeaving(true)}>
+          Leave this Secret Santa
+        </button>
       </div>
+      {leaving && (
+        <ConfirmDialog
+          title={`Leave ${group.name}?`}
+          body={
+            group.draw_status === 'drawn'
+              ? 'Your details and wish list are deleted, and names are drawn again for everyone else.'
+              : 'Your details and wish list are deleted.'
+          }
+          confirmLabel="Leave"
+          busy={leave.isPending}
+          error={leave.error?.message}
+          onConfirm={() => leave.mutate()}
+          onCancel={() => {
+            leave.reset()
+            setLeaving(false)
+          }}
+        />
+      )}
     </main>
   )
 }
