@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     database_url: str = "postgresql+psycopg://santa:santa@localhost:5432/santa"
+    # Neon's direct (unpooled) URL, as `neon env pull` names it. Used for migrations,
+    # which can't go through the pooler; falls back to DATABASE_URL when unset.
+    database_url_unpooled: str | None = None
     # False on serverless hosts (Vercel): open a connection per request and let the
     # database's own pooler (Neon's PgBouncer) do the pooling.
     database_pooling: bool = True
@@ -44,12 +47,12 @@ class Settings(BaseSettings):
     # client can't dodge limits by sending its own header. 0 trusts no header.
     trusted_proxy_hops: int = 0
 
-    @field_validator("database_url")
+    @field_validator("database_url", "database_url_unpooled")
     @classmethod
-    def _use_psycopg(cls, url: str) -> str:
+    def _use_psycopg(cls, url: str | None) -> str | None:
         # Hosts hand out postgres:// or postgresql:// URLs; SQLAlchemy needs the driver.
         for prefix in ("postgres://", "postgresql://"):
-            if url.startswith(prefix):
+            if url and url.startswith(prefix):
                 return "postgresql+psycopg://" + url.removeprefix(prefix)
         return url
 
@@ -61,6 +64,16 @@ class Settings(BaseSettings):
             if self.email_backend == "console":
                 raise ValueError("EMAIL_BACKEND must be smtp or resend outside development")
         return self
+
+    @property
+    def migration_database_url(self) -> str:
+        return self.database_url_unpooled or self.database_url
+
+    @property
+    def uses_pgbouncer(self) -> bool:
+        """Neon's pooled hosts end in -pooler and run PgBouncer in transaction mode."""
+        host = self.database_url.split("@", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+        return host.split(".", 1)[0].endswith("-pooler")
 
     @property
     def cors_origin_list(self) -> list[str]:

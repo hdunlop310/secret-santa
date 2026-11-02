@@ -169,3 +169,23 @@ class TestServerlessEngine:
                 assert conn.connection.dbapi_connection.prepare_threshold is None
         finally:
             db.get_engine.cache_clear()
+
+
+class TestNeonUrls:
+    POOLED = "postgresql://u:p@ep-x-123-pooler.c-2.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+    DIRECT = "postgresql://u:p@ep-x-123.c-2.eu-west-2.aws.neon.tech/neondb?sslmode=require"
+
+    def test_migrations_use_the_direct_url(self):
+        from app.config import Settings
+
+        s = Settings(database_url=self.POOLED, database_url_unpooled=self.DIRECT)
+        assert s.migration_database_url.startswith("postgresql+psycopg://u:p@ep-x-123.c-2")
+        unset = Settings(database_url=self.DIRECT, database_url_unpooled=None)
+        assert unset.migration_database_url.endswith("neon.tech/neondb?sslmode=require")
+
+    def test_detects_the_pooler(self):
+        from app.config import Settings
+
+        assert Settings(database_url=self.POOLED).uses_pgbouncer
+        assert not Settings(database_url=self.DIRECT).uses_pgbouncer
+        assert not Settings(database_url="postgresql://u:p@localhost:5432/santa").uses_pgbouncer

@@ -16,8 +16,9 @@ target_metadata = Base.metadata
 
 
 def database_url() -> str:
-    # Tests pass their own URL; otherwise use the app's.
-    return config.attributes.get("database_url") or get_settings().database_url
+    # Tests pass their own URL. Otherwise migrate over the direct connection: Neon's
+    # pooled one runs PgBouncer in transaction mode, which migrations can't use.
+    return config.attributes.get("database_url") or get_settings().migration_database_url
 
 
 def run_migrations_offline() -> None:

@@ -15,10 +15,12 @@ class Base(DeclarativeBase):
 @lru_cache
 def get_engine() -> Engine:
     settings = get_settings()
+    # PgBouncer in transaction mode (Neon's -pooler hosts) can't follow server-side
+    # prepared statements between connections, so psycopg must never create them.
+    connect_args = {"prepare_threshold": None} if settings.uses_pgbouncer else {}
     if settings.database_pooling:
-        return create_engine(settings.database_url, pool_pre_ping=True)
-    # Serverless: no pool of our own, and no server-side prepared statements, which a
-    # transaction-mode pooler such as PgBouncer can't follow between connections.
+        return create_engine(settings.database_url, pool_pre_ping=True, connect_args=connect_args)
+    # Serverless: no pool of our own; the database's pooler does the pooling.
     return create_engine(
         settings.database_url,
         poolclass=NullPool,
