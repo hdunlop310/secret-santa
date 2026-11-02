@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     database_url: str = "postgresql+psycopg://santa:santa@localhost:5432/santa"
+    # False on serverless hosts (Vercel): open a connection per request and let the
+    # database's own pooler (Neon's PgBouncer) do the pooling.
+    database_pooling: bool = True
     app_base_url: str = "http://localhost:5173"
     # Public URL of this API, used for one-click unsubscribe headers in emails.
     api_base_url: str = "http://localhost:8000"

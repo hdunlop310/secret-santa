@@ -6,6 +6,7 @@ from app.email.senders import (
     ResendEmailSender,
     SmtpEmailSender,
     get_email_sender,
+    send_many_safely,
     send_safely,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "ResendEmailSender",
     "SmtpEmailSender",
     "get_email_sender",
+    "send_many_safely",
     "send_safely",
 ]

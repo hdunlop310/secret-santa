@@ -34,3 +34,7 @@ ignore = ["S101", "B008", "RUF001"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.vercel]
+# The ASGI app Vercel serves. Dependencies come from [project] above (not the dev group).
+entrypoint = "app.main:app"

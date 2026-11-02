@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Query
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from app.draw import check_can_draw, check_draw_rate, notify_draw, run_draw
@@ -17,16 +17,15 @@ def draw(
     group: AdminGroup,
     db: DB,
     sender: Sender,
-    background: BackgroundTasks,
 ) -> DrawResult:
     if group.id != group_id:
         raise NOT_FOUND
     check_can_draw(group, body.confirm_redraw)
     redraw = group.draw_status == "drawn"
-    check_draw_rate(group)
+    check_draw_rate(db, group)
     run_draw(db, group)
     db.commit()
-    notify_draw(background, sender, group, redraw)
+    notify_draw(sender, group, redraw)
     return DrawResult(
         draw_status=group.draw_status,
         drawn_at=group.drawn_at,
@@ -41,7 +40,6 @@ def remove_participant(
     group: AdminGroup,
     db: DB,
     sender: Sender,
-    background: BackgroundTasks,
     confirm_redraw: bool = Query(False),
 ) -> None:
     """Remove someone and their data. After the draw this redraws, after confirmation."""
@@ -51,7 +49,7 @@ def remove_participant(
     drawn = group.draw_status == "drawn"
     if drawn:
         check_can_draw(group, confirm_redraw)
-        check_draw_rate(group)
+        check_draw_rate(db, group)
     db.delete(participant)
     if drawn:
         try:
@@ -61,7 +59,7 @@ def remove_participant(
             raise
     db.commit()
     if drawn:
-        notify_draw(background, sender, group, redraw=True)
+        notify_draw(sender, group, redraw=True)
 
 
 @router.get("/me/giftee", response_model=GifteeResponse)

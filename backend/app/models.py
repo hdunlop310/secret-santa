@@ -123,6 +123,18 @@ class WishlistItem(Base):
     participant: Mapped[Participant] = relationship(back_populates="items")
 
 
+class RateLimitHit(Base):
+    """One request counted against a rate limit. key_hash is SHA-256 of bucket and key."""
+
+    __tablename__ = "rate_limit_hits"
+    __table_args__ = (Index("ix_rate_limit_lookup", "bucket", "key_hash", "hit_at"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    bucket: Mapped[str] = mapped_column(String(32))
+    key_hash: Mapped[str] = mapped_column(String(64))
+    hit_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class Reminder(Base):
     """One row per reminder sent, or per wish-list-changed email waiting to go out.
 

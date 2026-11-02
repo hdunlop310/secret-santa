@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -38,22 +38,20 @@ router = APIRouter()
 Sender = Annotated[EmailSender, Depends(get_email_sender)]
 
 
-def _check_group_rate(request: Request) -> None:
-    limiter.check("group_create", client_ip(request), get_settings().rate_limit_group_create)
+def _check_group_rate(db: DB, request: Request) -> None:
+    limiter.check(db, "group_create", client_ip(request), get_settings().rate_limit_group_create)
 
 
-def check_email_rate(request: Request, email: str) -> None:
+def check_email_rate(db: DB, request: Request, email: str) -> None:
     limit = get_settings().rate_limit_email_send
-    limiter.check("email_ip", client_ip(request), limit)
-    limiter.check("email_to", email, limit)
+    limiter.check(db, "email_ip", client_ip(request), limit)
+    limiter.check(db, "email_to", email, limit)
 
 
 @router.post("/groups", status_code=status.HTTP_201_CREATED, response_model=GroupCreated)
-def create_group(
-    body: GroupCreate, request: Request, db: DB, sender: Sender, background: BackgroundTasks
-) -> GroupCreated:
-    _check_group_rate(request)
-    check_email_rate(request, body.admin_email)
+def create_group(body: GroupCreate, request: Request, db: DB, sender: Sender) -> GroupCreated:
+    _check_group_rate(db, request)
+    check_email_rate(db, request, body.admin_email)
 
     admin_token = new_token()
     group = Group(
@@ -88,8 +86,7 @@ def create_group(
         invite_link=invite_link(group),
         participant_link=participant_link(personal_token) if personal_token else None,
     )
-    background.add_task(
-        send_safely,
+    send_safely(
         sender,
         templates.admin_created(
             group, links.admin_link, links.participant_link, unsubscribe_links("a", group.id)
@@ -157,7 +154,6 @@ def add_participant(
     group: AdminGroupDep,
     db: DB,
     sender: Sender,
-    background: BackgroundTasks,
 ) -> ParticipantSummary:
     if group.id != group_id:
         raise NOT_FOUND
@@ -167,7 +163,7 @@ def add_participant(
     count = db.scalar(select(func.count()).where(Participant.group_id == group.id))
     if count >= MAX_PARTICIPANTS:
         raise HTTPException(status.HTTP_409_CONFLICT, "This group is full")
-    check_email_rate(request, body.email)
+    check_email_rate(db, request, body.email)
 
     if db.scalar(
         select(Participant.id).where(
@@ -176,7 +172,7 @@ def add_participant(
     ):
         raise HTTPException(status.HTTP_409_CONFLICT, "Someone with that email is already in")
     if drawn:
-        check_draw_rate(group)
+        check_draw_rate(db, group)
 
     token = new_token()
     participant = Participant(
@@ -195,8 +191,7 @@ def add_participant(
     except Exception:
         db.rollback()
         raise
-    background.add_task(
-        send_safely,
+    send_safely(
         sender,
         templates.invited_by_admin(
             group,
@@ -207,7 +202,7 @@ def add_participant(
         ),
     )
     if drawn:
-        notify_draw(background, sender, group, redraw=True, skip={participant.id})
+        notify_draw(sender, group, redraw=True, skip={participant.id})
     return ParticipantSummary(
         id=participant.id,
         name=participant.name,
@@ -223,16 +218,14 @@ def regenerate_admin_link(
     group: AdminGroupDep,
     db: DB,
     sender: Sender,
-    background: BackgroundTasks,
 ) -> None:
     if group.id != group_id:
         raise NOT_FOUND
-    check_email_rate(request, group.admin_email)
+    check_email_rate(db, request, group.admin_email)
     token = new_token()
     group.admin_token_hash = hash_token(token)
     db.commit()
-    background.add_task(
-        send_safely,
+    send_safely(
         sender,
         templates.admin_link_regenerated(
             group, admin_link(token), unsubscribe_links("a", group.id)

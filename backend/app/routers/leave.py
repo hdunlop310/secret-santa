@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete
 
 from app.draw import notify_draw, run_draw
@@ -16,9 +16,7 @@ router = APIRouter()
 
 
 @router.delete("/me", status_code=204)
-def leave(
-    participant: CurrentParticipant, db: DB, sender: Sender, background: BackgroundTasks
-) -> None:
+def leave(participant: CurrentParticipant, db: DB, sender: Sender) -> None:
     """Delete yourself, your wish list and your exclusions.
 
     Leaving can't be blocked by the draw. Before the gift date we redraw for everyone
@@ -42,10 +40,9 @@ def leave(
     db.commit()
 
     if redrawn is True:
-        notify_draw(background, sender, group, redraw=True)
+        notify_draw(sender, group, redraw=True)
     if redrawn is not None:
-        background.add_task(
-            send_safely,
+        send_safely(
             sender,
             templates.participant_left(group, name, redrawn, unsubscribe_links("a", group.id)),
         )

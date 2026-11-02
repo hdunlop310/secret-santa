@@ -2,13 +2,13 @@
 
 from datetime import UTC, date, datetime
 
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app import matching
 from app.config import get_settings
-from app.email import EmailSender, send_safely, templates
+from app.email import EmailSender, send_many_safely, templates
 from app.models import Assignment, Exclusion, Group
 from app.ratelimit import limiter
 from app.services import invite_link
@@ -70,26 +70,24 @@ def run_draw(db: Session, group: Group) -> None:
     group.drawn_at = datetime.now(UTC)
 
 
-def check_draw_rate(group: Group) -> None:
+def check_draw_rate(db: Session, group: Group) -> None:
     """Each draw emails everyone, so cap how often an admin can trigger one."""
-    if not limiter.hit("draw", str(group.id), get_settings().rate_limit_draw):
+    if not limiter.hit(db, "draw", str(group.id), get_settings().rate_limit_draw):
         raise conflict("too_many_draws", "Too many draws in a short time. Try again later.")
 
 
 def notify_draw(
-    background: BackgroundTasks,
     sender: EmailSender,
     group: Group,
     redraw: bool,
     skip: frozenset[int] | set[int] = frozenset(),
 ) -> None:
+    """Email everyone that names were drawn. Sent before the response returns: on
+    serverless hosts nothing is guaranteed to run after it."""
     link = invite_link(group)
-    for p in group.participants:
-        if p.id not in skip:
-            background.add_task(
-                send_safely,
-                sender,
-                templates.draw_done(
-                    group, p.name, p.email, link, redraw, unsubscribe_links("p", p.id)
-                ),
-            )
+    messages = [
+        templates.draw_done(group, p.name, p.email, link, redraw, unsubscribe_links("p", p.id))
+        for p in group.participants
+        if p.id not in skip
+    ]
+    send_many_safely(sender, messages)

@@ -134,10 +134,12 @@ def reorder_items(
 
 
 @router.post("/link-preview", response_model=LinkPreviewOut)
-def link_preview(body: LinkPreviewRequest, participant: CurrentParticipant) -> LinkPreviewOut:
+def link_preview(
+    body: LinkPreviewRequest, participant: CurrentParticipant, db: DB
+) -> LinkPreviewOut:
     """Best-effort title and image for a pasted link. Never fails: empty fields on error."""
     limit = get_settings().rate_limit_link_preview
-    if not limiter.hit("link_preview", str(participant.id), limit):
+    if not limiter.hit(db, "link_preview", str(participant.id), limit):
         return LinkPreviewOut()
     preview = fetch_preview(body.url)
     return LinkPreviewOut(title=preview.title, image_url=preview.image_url)

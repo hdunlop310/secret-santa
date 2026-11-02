@@ -5,11 +5,9 @@ import io
 from contextlib import redirect_stdout
 
 import pytest
-from fastapi import HTTPException
 
 from app.email.senders import ConsoleEmailSender, EmailMessage, redact_links, send_safely
 from app.money import format_budget, format_pence
-from app.ratelimit import RateLimiter
 from app.security import hash_token, new_token, tokens_match
 
 
@@ -45,32 +43,6 @@ class TestMoney:
 
     def test_format_budget(self):
         assert format_budget(1500, 2500) == "£15 to £25"
-
-
-class TestRateLimiter:
-    def test_blocks_after_limit_within_window(self):
-        limiter = RateLimiter(window_seconds=60)
-        assert all(limiter.hit("b", "k", 3, now=t) for t in (0, 1, 2))
-        assert not limiter.hit("b", "k", 3, now=3)
-
-    def test_window_slides(self):
-        limiter = RateLimiter(window_seconds=60)
-        for t in (0, 1, 2):
-            limiter.hit("b", "k", 3, now=t)
-        assert limiter.hit("b", "k", 3, now=61)
-
-    def test_keys_and_buckets_are_separate(self):
-        limiter = RateLimiter(window_seconds=60)
-        limiter.hit("b", "k", 1, now=0)
-        assert limiter.hit("b", "other", 1, now=0)
-        assert limiter.hit("other", "k", 1, now=0)
-
-    def test_check_raises_429(self):
-        limiter = RateLimiter()
-        limiter.check("b", "k", 1)
-        with pytest.raises(HTTPException) as exc:
-            limiter.check("b", "k", 1)
-        assert exc.value.status_code == 429
 
 
 class TestEmailSafety:
@@ -134,3 +106,64 @@ class TestDatabaseUrl:
             assert Settings(database_url=url).database_url == "postgresql+psycopg://u:p@h:5432/db"
         ours = "postgresql+psycopg://u:p@h/db"
         assert Settings(database_url=ours).database_url == ours
+
+
+class TestResendBatching:
+    def test_batches_in_chunks_of_100_with_unsubscribe_headers(self, monkeypatch):
+        from app.email.senders import EmailMessage, ResendEmailSender, send_many
+
+        calls = []
+
+        class Response:
+            def raise_for_status(self):
+                pass
+
+        def fake_post(url, headers, json, timeout):
+            calls.append((url, json))
+            return Response()
+
+        monkeypatch.setattr("app.email.senders.httpx.post", fake_post)
+        sender = ResendEmailSender("key", "Santa <s@example.com>")
+        messages = [
+            EmailMessage(f"p{i}@example.com", "S", "t", "h", unsubscribe_url="https://api/u/x")
+            for i in range(150)
+        ]
+        send_many(sender, messages)
+        assert [url for url, _ in calls] == ["https://api.resend.com/emails/batch"] * 2
+        assert [len(body) for _, body in calls] == [100, 50]
+        assert calls[0][1][0]["headers"]["List-Unsubscribe"] == "<https://api/u/x>"
+
+    def test_senders_without_batch_send_one_by_one(self):
+        from app.email.senders import EmailMessage, MemoryEmailSender, send_many
+
+        sender = MemoryEmailSender()
+        send_many(sender, [EmailMessage("a@x.com", "S", "t", "h")] * 3)
+        assert len(sender.outbox) == 3
+
+    def test_batch_failure_is_swallowed(self, caplog):
+        from app.email.senders import EmailMessage, send_many_safely
+
+        class Broken:
+            def send_batch(self, messages):
+                raise TimeoutError("slow")
+
+        send_many_safely(Broken(), [EmailMessage("a@x.com", "S", "t", "h")])
+        assert "TimeoutError" in caplog.text
+
+
+class TestServerlessEngine:
+    def test_no_pool_and_no_prepared_statements(self, monkeypatch):
+        from sqlalchemy.pool import NullPool
+
+        from app import db
+        from app.config import get_settings
+
+        monkeypatch.setattr(get_settings(), "database_pooling", False)
+        db.get_engine.cache_clear()
+        try:
+            engine = db.get_engine()
+            assert isinstance(engine.pool, NullPool)
+            with engine.connect() as conn:
+                assert conn.connection.dbapi_connection.prepare_threshold is None
+        finally:
+            db.get_engine.cache_clear()

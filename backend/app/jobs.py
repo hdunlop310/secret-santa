@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.email import EmailSender, send_safely, templates
 from app.models import Assignment, Group, Participant, Reminder, WishlistItem
+from app.ratelimit import limiter
 from app.services import invite_link
 from app.unsubscribe import links as unsubscribe_links
 
@@ -193,6 +194,7 @@ def run(db: Session, sender: EmailSender, now: datetime | None = None) -> Report
     now = now or datetime.now(UTC)
     report = Report()
     report.deleted_groups = delete_expired_groups(db, now.date())
+    limiter.delete_old(db, now)
     db.commit()
     send_wishlist_changes(db, sender, now, report)
     db.commit()

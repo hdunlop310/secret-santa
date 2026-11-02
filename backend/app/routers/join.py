@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import func, select
 
 from app.email import send_safely, templates
@@ -43,7 +43,6 @@ def join(
     request: Request,
     db: DB,
     sender: Sender,
-    background: BackgroundTasks,
 ) -> dict[str, str]:
     """Join a group, or get a fresh link if this email is already in it.
 
@@ -51,7 +50,7 @@ def join(
     is in a group. A re-send replaces the person's token: hashes can't be re-sent.
     """
     group = _group_for_invite(db, invite_token)
-    check_email_rate(request, body.email)
+    check_email_rate(db, request, body.email)
 
     token = new_token()
     participant = db.scalar(
@@ -77,8 +76,7 @@ def join(
         )
         db.add(participant)
     db.commit()
-    background.add_task(
-        send_safely,
+    send_safely(
         sender,
         templates.personal_link(
             group, name, body.email, participant_link(token), unsubscribe_links("p", participant.id)

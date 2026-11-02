@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db import Base, get_db
 from app.email import MemoryEmailSender, get_email_sender
 from app.main import create_app
-from app.ratelimit import limiter
 
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://santa:santa@localhost:5432/santa_test"
@@ -50,7 +49,6 @@ def outbox() -> MemoryEmailSender:
 
 @pytest.fixture
 def client(engine, db, outbox) -> Iterator[TestClient]:
-    limiter.reset()
     app = create_app()
     factory = sessionmaker(bind=engine, expire_on_commit=False)
 
