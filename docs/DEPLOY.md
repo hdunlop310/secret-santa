@@ -59,7 +59,7 @@ Create a Vercel account (Hobby) and import the GitHub repository four times:
 | `secretsanta-staging` | `frontend` | `main` |
 | `secretsanta` | `frontend` | `production` |
 
-Set the production branch under Settings, Git, after importing. Vercel reads `backend/pyproject.toml` (`[tool.vercel] entrypoint = "app.main:app"`) and `frontend/vercel.json` by itself.
+Set the production branch under Settings, Git, after importing. Your Vercel login must be connected to GitHub (Account Settings, Authentication), or Vercel blocks push deployments with "couldn't find a Git account for the commit author". Vercel reads `backend/pyproject.toml` (`[tool.vercel] entrypoint = "app.main:app"`) and `frontend/vercel.json` by itself.
 
 API environment variables (Settings, Environment Variables, Production):
 
