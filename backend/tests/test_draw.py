@@ -108,7 +108,7 @@ class TestDraw:
                 assert drawn[five.ids[a]] != five.ids[b]
 
     def test_admin_only(self, client, five):
-        for token in (five.tokens["Alex"], five.tokens["Sam"]):
+        for token in (five.tokens["Alex"], five.tokens["Priya"]):
             response = client.post(
                 f"/groups/{five.id}/draw", headers=bearer(token), json={"confirm_redraw": True}
             )
@@ -296,6 +296,16 @@ class TestGiftee:
         after = giftee_of(client, five.tokens["Alex"])["giftee"]
         assert after["updated_since_draw"] is True and after["updated_at"]
 
-    def test_admin_token_has_no_giftee(self, client, five):
+    def test_admin_link_shows_only_the_organisers_own_giftee(self, client, five, db):
         run_draw(client, five)
-        assert client.get("/me/giftee", headers=bearer(five.admin)).status_code == 404
+        sam = db.scalar(select(Participant).where(Participant.is_admin))
+        giftee_id = db.scalar(select(Assignment.giftee_id).where(Assignment.giver_id == sam.id))
+        body = client.get("/me/giftee", headers=bearer(five.admin)).json()
+        assert body["giftee"]["name"] == db.get(Participant, giftee_id).name
+
+    def test_admin_not_taking_part_has_no_giftee(self, client, outbox, make_group):
+        g = make_group(admin_participates=False)
+        for name in ("Alex", "Priya", "Jo"):
+            join(client, outbox, g.invite, name, f"{name.lower()}@example.com")
+        client.post(f"/groups/{g.id}/draw", headers=bearer(g.admin), json={})
+        assert client.get("/me/giftee", headers=bearer(g.admin)).status_code == 404

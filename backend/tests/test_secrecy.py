@@ -3,11 +3,16 @@
 Walks every API route as the admin, as every participant and with no token, after a
 draw with exclusions and wish lists in place, then checks responses, emails and logs.
 Adding a route without listing it in ROUTES fails this test on purpose.
+
+The organiser's admin link doubles as their own participant link when they take part,
+so it may show their own giftee, exactly like any other participant's link, and nothing
+more. When they don't take part, it shows no giftee and no wish list at all.
 """
 
 import json
 import logging
 
+import pytest
 from sqlalchemy import select
 
 from app.main import create_app
@@ -27,7 +32,9 @@ ROUTES = {
     ("POST", "/groups/{group_id}/participants"): {"skip_auth_matrix": True},  # forces a redraw
     ("POST", "/groups/{group_id}/regenerate-admin-link"): {"skip_auth_matrix": True},
     ("GET", "/join/{invite_token}"): {},
-    ("POST", "/join/{invite_token}"): {"skip_auth_matrix": True},  # rotates a link
+    ("POST", "/join/{invite_token}"): {"skip_auth_matrix": True},  # adds a person
+    ("POST", "/links/open/{token}"): {},
+    ("POST", "/links/lost"): {"json": {"email": "nobody@example.com"}},
     ("GET", "/me"): {},
     ("PUT", "/me"): {"json": {}},
     ("POST", "/me/items"): {"skip_auth_matrix": True},
@@ -68,10 +75,17 @@ def _pairs_in(value, found):
     return found
 
 
-def test_nothing_leaks_who_has_whom(client, db, outbox, make_group, caplog):
+@pytest.mark.parametrize("organiser_takes_part", [True, False])
+def test_nothing_leaks_who_has_whom(client, db, outbox, make_group, caplog, organiser_takes_part):
     caplog.set_level(logging.DEBUG)
-    g = make_group(admin_name="Sam", admin_email="sam@example.com")
-    tokens = {"Sam": g.admin_participant}
+    g = make_group(
+        admin_name="Sam", admin_email="sam@example.com", admin_participates=organiser_takes_part
+    )
+    tokens = {}
+    if organiser_takes_part:
+        tokens["Sam"] = g.admin_participant
+    else:
+        tokens["Sam"] = join(client, outbox, g.invite, "Sam", "sam.p@example.com")
     for name in PEOPLE[1:]:
         tokens[name] = join(client, outbox, g.invite, name, f"{name.lower()}@example.com")
     ids = {
@@ -134,6 +148,8 @@ def test_nothing_leaks_who_has_whom(client, db, outbox, make_group, caplog):
             # No response anywhere contains an assignment pair.
             assert not (_pairs_in(body, set()) & assignment_pairs), (method, path, caller)
 
+            if caller == "admin" and organiser_takes_part:
+                caller = "Sam"  # the admin link is also Sam's participant link
             if caller in ("admin", "nobody"):
                 # The admin and strangers never see a giftee or any wish list.
                 assert '"giftee"' not in text or body.get("giftee") is None, (path, caller)
@@ -164,6 +180,7 @@ def test_nothing_leaks_who_has_whom(client, db, outbox, make_group, caplog):
 
     # Emails: no draw email names the recipient's giftee.
     by_email = {f"{n.lower()}@example.com": n for n in PEOPLE}
+    by_email["sam.p@example.com"] = "Sam"
     for message in outbox.outbox:
         recipient = by_email.get(message.to)
         if recipient and "drawn" in message.subject.lower():

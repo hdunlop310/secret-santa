@@ -64,40 +64,30 @@ def _message(
     )
 
 
-def _lost_link(invite_link: str) -> list[Block]:
-    return [
-        "Lost your personal link? Enter your email here and we'll send a new one.",
-        ("Get a new link", invite_link),
-    ]
-
-
 # Links and confirmations
 
 
 def admin_created(
-    group: Group, admin_link: str, personal_link: str | None, unsubscribe: UnsubscribeLinks
+    group: Group, link: str, participates: bool, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     blocks: list[Block] = [
         f'Your Secret Santa "{group.name}" is set up. {_facts(group)}.',
-        "This is your admin link. Keep it private: anyone with it can run the group.",
-        ("Open your group", admin_link),
+        "This is your link for running the group"
+        + (", adding your wish list and seeing who you're buying for" if participates else "")
+        + ". Keep it private: anyone with it can run the group.",
+        ("Open your group", link),
     ]
-    if personal_link:
-        blocks += [
-            "This is your personal link, for your own wish list and giftee.",
-            ("Open your wish list", personal_link),
-        ]
-    return _message(group.admin_email, f"Your admin link for {group.name}", blocks, unsubscribe)
+    return _message(group.admin_email, f"Your link for {group.name}", blocks, unsubscribe)
 
 
 def admin_link_regenerated(
     group: Group, admin_link: str, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     blocks: list[Block] = [
-        f'A new admin link was created for "{group.name}". The old one no longer works.',
+        f'A new link was created for "{group.name}". The old one no longer works.',
         ("Open your group", admin_link),
     ]
-    return _message(group.admin_email, f"New admin link for {group.name}", blocks, unsubscribe)
+    return _message(group.admin_email, f"New link for {group.name}", blocks, unsubscribe)
 
 
 def personal_link(
@@ -105,9 +95,9 @@ def personal_link(
 ) -> EmailMessage:
     blocks: list[Block] = [
         f"Hi {name},",
-        f'Here is your personal link for "{group.name}". {_facts(group)}.',
-        "Use it to add your wish list and, after the draw, to see who you're buying for. "
-        "Keep it private.",
+        f'You\'re in "{group.name}". {_facts(group)}.',
+        "Use this link to add your wish list and, after the draw, to see who you're buying "
+        "for. Keep it private.",
         ("Open your wish list", link),
     ]
     return _message(email, f"Your link for {group.name}", blocks, unsubscribe)
@@ -123,18 +113,26 @@ def invited_by_admin(
     if group.message:
         blocks.append(f"From {group.admin_name}: {group.message}")
     blocks += [
-        "Use this personal link to add your wish list and, after the draw, to see who "
-        "you're buying for. Keep it private.",
+        "Use this link to add your wish list and, after the draw, to see who you're buying "
+        "for. Keep it private.",
         ("Open your wish list", link),
     ]
     return _message(email, f"You're invited to {group.name}", blocks, unsubscribe)
+
+
+def lost_links(email: str, groups: list[tuple[str, str]]) -> EmailMessage:
+    """Answer to the lost-link page: one button per group. The links expire in a day."""
+    blocks: list[Block] = ["Here are your Secret Santa links. They work for 24 hours."]
+    blocks += [(f"Open {name}", link) for name, link in groups]
+    blocks.append("If you didn't ask for these, you can ignore this email.")
+    return _message(email, "Your Secret Santa links", blocks, None)
 
 
 def draw_done(
     group: Group,
     name: str,
     email: str,
-    invite_link: str,
+    link: str,
     redraw: bool,
     unsubscribe: UnsubscribeLinks,
 ) -> EmailMessage:
@@ -151,14 +149,13 @@ def draw_done(
     blocks: list[Block] = [
         f"Hi {name},",
         f"{lead} {_facts(group)}.",
-        "Open your personal link from your earlier email to see who you're buying for.",
-        *_lost_link(invite_link),
+        ("See who you're buying for", link),
     ]
     return _message(email, subject, blocks, unsubscribe)
 
 
 def participant_left(
-    group: Group, name: str, redrawn: bool, unsubscribe: UnsubscribeLinks
+    group: Group, name: str, redrawn: bool, link: str, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     """To the admin when someone removes themselves after the draw."""
     if redrawn:
@@ -166,9 +163,13 @@ def participant_left(
     else:
         detail = (
             "A new draw wasn't possible with the people and exclusions left, so the draw "
-            "has been cleared. Open your admin link to fix the exclusions and run it again."
+            "has been cleared. Fix the exclusions and run it again."
         )
-    blocks: list[Block] = [f'{name} left "{group.name}" and their data was deleted.', detail]
+    blocks: list[Block] = [
+        f'{name} left "{group.name}" and their data was deleted.',
+        detail,
+        ("Open your group", link),
+    ]
     return _message(group.admin_email, f"{name} left {group.name}", blocks, unsubscribe)
 
 
@@ -176,26 +177,24 @@ def participant_left(
 
 
 def invite_reminder(
-    group: Group, name: str, email: str, invite_link: str, unsubscribe: UnsubscribeLinks
+    group: Group, name: str, email: str, link: str, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     blocks: list[Block] = [
         f"Hi {name},",
         f'{group.admin_name} added you to the Secret Santa "{group.name}". {_facts(group)}.',
-        "Open the personal link in your earlier email to add your wish list.",
-        *_lost_link(invite_link),
+        ("Add your wish list", link),
     ]
     return _message(email, f"Reminder: you're in {group.name}", blocks, unsubscribe)
 
 
 def wishlist_nudge(
-    group: Group, name: str, email: str, invite_link: str, unsubscribe: UnsubscribeLinks
+    group: Group, name: str, email: str, link: str, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     blocks: list[Block] = [
         f"Hi {name},",
         f'Your wish list for "{group.name}" is empty. Add a few ideas, or choose secret '
         "surprise, so your Secret Santa knows what to get you.",
-        "Open your personal link from your earlier email to add them.",
-        *_lost_link(invite_link),
+        ("Add your wish list", link),
     ]
     return _message(email, f"Add your wish list for {group.name}", blocks, unsubscribe)
 
@@ -205,36 +204,34 @@ def gift_date_soon(
     name: str,
     email: str,
     days: int,
-    invite_link: str,
+    link: str,
     unsubscribe: UnsubscribeLinks,
 ) -> EmailMessage:
     when = "tomorrow" if days == 1 else f"in {days} days"
     blocks: list[Block] = [
         f"Hi {name},",
         f'The gift exchange for "{group.name}" is {when}. {_facts(group)}.',
-        "Open your personal link to check your giftee's wish list.",
-        *_lost_link(invite_link),
+        ("See your giftee's wish list", link),
     ]
     return _message(email, f"{group.name} is {when}", blocks, unsubscribe)
 
 
-def draw_pending(group: Group, days: int, unsubscribe: UnsubscribeLinks) -> EmailMessage:
+def draw_pending(group: Group, days: int, link: str, unsubscribe: UnsubscribeLinks) -> EmailMessage:
     when = "tomorrow" if days == 1 else f"in {days} days"
     blocks: list[Block] = [
         f'The gift exchange for "{group.name}" is {when}, and the names haven\'t been drawn.',
-        "Open your admin link to run the draw.",
+        ("Run the draw", link),
     ]
     return _message(group.admin_email, f"Run the draw for {group.name}", blocks, unsubscribe)
 
 
 def wishlist_changed(
-    group: Group, name: str, email: str, invite_link: str, unsubscribe: UnsubscribeLinks
+    group: Group, name: str, email: str, link: str, unsubscribe: UnsubscribeLinks
 ) -> EmailMessage:
     """To a giver. Says their giftee changed their list without naming who that is."""
     blocks: list[Block] = [
         f"Hi {name},",
         f'The person you\'re buying for in "{group.name}" has updated their wish list.',
-        "Open your personal link to see what's new.",
-        *_lost_link(invite_link),
+        ("See what's new", link),
     ]
     return _message(email, f"Wish list updated in {group.name}", blocks, unsubscribe)

@@ -66,7 +66,6 @@ class GroupCreated(BaseModel):
     group_id: int
     admin_link: str
     invite_link: str
-    participant_link: str | None
 
 
 class GroupUpdate(BudgetMixin, StrictModel):
@@ -122,6 +121,20 @@ class InvitePreview(BaseModel):
 class JoinRequest(StrictModel):
     name: Name
     email: Email
+
+
+class JoinResult(BaseModel):
+    status: Literal["joined", "sent"]
+    participant_link: str | None = None
+
+
+class LostLinkRequest(StrictModel):
+    email: Email
+
+
+class OpenedLink(BaseModel):
+    kind: Literal["admin", "participant"]
+    link: str
 
 
 class AddParticipant(StrictModel):

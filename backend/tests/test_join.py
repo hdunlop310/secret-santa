@@ -1,8 +1,8 @@
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
 from app.models import Group, Participant
 from app.security import hash_token, new_token
-from tests.conftest import bearer, future, join
+from tests.conftest import bearer, future, join, open_link_in, token_from
 
 
 class TestInvitePreview:
@@ -35,22 +35,24 @@ class TestJoin:
         me = client.get("/me", headers=bearer(token)).json()
         assert me["name"] == "Alex" and me["group"]["name"] == "Family Secret Santa"
 
-    def test_rejoin_resends_a_fresh_link_with_the_same_response(
-        self, client, outbox, make_group, db
-    ):
+    def test_rejoin_only_emails_a_link(self, client, outbox, make_group, db):
         g = make_group()
         first = join(client, outbox, g.invite, "Alex", "alex@example.com")
         response = client.post(
             f"/join/{g.invite}", json={"name": "Someone else", "email": "alex@example.com"}
         )
+        # Nobody is let in by typing a known email: the link goes to that inbox only.
         assert response.status_code == 202
-        assert response.json() == {"status": "sent"}
-        second = join(client, outbox, g.invite, "Alex", "alex@example.com")
+        assert response.json() == {"status": "sent", "participant_link": None}
+        email = outbox.outbox[-1]
+        assert email.to == "alex@example.com" and "Hi Alex" in email.text
+        opened = client.post(f"/links/open/{open_link_in(email.text)}")
+        second = token_from(opened.json()["link"])
         assert first != second
-        assert client.get("/me", headers=bearer(first)).status_code == 404
-        me = client.get("/me", headers=bearer(second)).json()
-        assert me["name"] == "Alex"  # a re-send does not let anyone rename someone
-        assert db.scalar(select(Participant).where(Participant.email == "alex@example.com"))
+        # Both links work: a re-send never breaks the older link.
+        for token in (first, second):
+            assert client.get("/me", headers=bearer(token)).json()["name"] == "Alex"
+        assert db.scalar(select(func.count()).select_from(Participant)) == 2
 
     def test_participant_cap_of_50(self, client, outbox, make_group, db):
         g = make_group()  # Sam is participant 1
@@ -86,8 +88,8 @@ class TestJoin:
             client.post(f"/join/{g.invite}", json={"name": "A", "email": "a@x.com"}).status_code
             for _ in range(4)
         ]
-        # Group creation already used one send from this IP.
-        assert codes == [202, 202, 429, 429]
+        # Group creation already used one send from this IP. The second join is a re-send.
+        assert codes == [201, 202, 429, 429]
 
     def test_validation(self, client, make_group):
         g = make_group()
@@ -97,7 +99,8 @@ class TestJoin:
 
 class TestMe:
     def test_requires_participant_token(self, client, make_group):
-        g = make_group()
-        assert client.get("/me", headers=bearer(g.admin)).status_code == 404
+        apart = make_group(admin_participates=False, admin_email="ann@example.com")
+        assert client.get("/me", headers=bearer(apart.admin)).status_code == 404
         assert client.get("/me").status_code == 404
-        assert client.get("/me", headers=bearer(g.admin_participant)).json()["is_admin"] is True
+        g = make_group()
+        assert client.get("/me", headers=bearer(g.admin)).json()["is_admin"] is True

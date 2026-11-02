@@ -128,8 +128,8 @@ class TestItems:
             assert response.status_code in (404, 422)
         assert items(client, alex)[0]["title"] == "Mine"
 
-    def test_admin_token_cannot_edit_wish_lists(self, client, make_group):
-        g = make_group()
+    def test_admin_token_cannot_edit_wish_lists_when_not_taking_part(self, client, make_group):
+        g = make_group(admin_participates=False)
         assert (
             client.post("/me/items", headers=bearer(g.admin), json={"title": "A"}).status_code
             == 404
@@ -200,7 +200,7 @@ class TestLinkPreviewEndpoint:
         assert response.json() == {"title": None, "image_url": None}
 
     def test_requires_participant_token(self, client, make_group):
-        g = make_group()
+        g = make_group(admin_participates=False)
         response = client.post(
             "/link-preview", headers=bearer(g.admin), json={"url": "https://example.com"}
         )

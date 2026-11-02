@@ -1,8 +1,10 @@
 from datetime import date
+from typing import Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.access import open_link, until_group_deleted
 from app.config import get_settings
 from app.models import Exclusion, Group, Participant
 from app.schemas import GroupPublic, ParticipantStatus, ParticipantSummary
@@ -61,3 +63,22 @@ def exclusion_pair_count(db: Session, group: Group) -> int:
         select(Exclusion.giver_id, Exclusion.giftee_id).where(Exclusion.group_id == group.id)
     )
     return len({frozenset(row) for row in rows})
+
+
+Destination = Literal["group", "wishlist", "giftee"]
+
+
+def admin_open_link(group: Group, to: Destination = "group") -> str:
+    """A link for emails to the organiser, valid until the group is deleted."""
+    return f"{open_link('a', group.id, until_group_deleted(group.gift_date))}?to={to}"
+
+
+def member_open_link(participant: Participant, to: Destination = "wishlist") -> str:
+    """A link for emails to a participant, valid until the group is deleted.
+
+    The organiser gets their admin link instead, so they keep using a single link.
+    """
+    if participant.is_admin:
+        return admin_open_link(participant.group, to)
+    expires = until_group_deleted(participant.group.gift_date)
+    return f"{open_link('p', participant.id, expires)}?to={to}"

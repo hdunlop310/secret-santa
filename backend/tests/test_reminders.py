@@ -316,7 +316,7 @@ class TestLeaving:
         assert client.get("/me", headers=bearer(four.tokens["Alex"])).status_code == 404
 
     def test_participant_cannot_delete_the_group(self, client, four):
-        assert client.delete("/admin/group", headers=bearer(four.tokens["Sam"])).status_code == 404
+        assert client.delete("/admin/group", headers=bearer(four.tokens["Alex"])).status_code == 404
 
 
 class TestCronEndpoint:

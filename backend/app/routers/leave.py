@@ -9,14 +9,15 @@ from app.draw import notify_draw, run_draw
 from app.email import send_safely, templates
 from app.models import Assignment
 from app.routers.groups import Sender
-from app.security import DB, AdminGroup, CurrentParticipant
+from app.security import DB, AdminGroup, OwnParticipant
+from app.services import admin_open_link
 from app.unsubscribe import links as unsubscribe_links
 
 router = APIRouter()
 
 
 @router.delete("/me", status_code=204)
-def leave(participant: CurrentParticipant, db: DB, sender: Sender) -> None:
+def leave(participant: OwnParticipant, db: DB, sender: Sender) -> None:
     """Delete yourself, your wish list and your exclusions.
 
     Leaving can't be blocked by the draw. Before the gift date we redraw for everyone
@@ -44,7 +45,9 @@ def leave(participant: CurrentParticipant, db: DB, sender: Sender) -> None:
     if redrawn is not None:
         send_safely(
             sender,
-            templates.participant_left(group, name, redrawn, unsubscribe_links("a", group.id)),
+            templates.participant_left(
+                group, name, redrawn, admin_open_link(group), unsubscribe_links("a", group.id)
+            ),
         )
 
 

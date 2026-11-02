@@ -12,6 +12,8 @@ Free, ad-free Secret Santa web app. No user accounts: people act through private
 
 - Secrecy is the product. No endpoint, log line, error message, email or test fixture may reveal the full list of who has whom. A giver's request returns only their own giftee. Admin endpoints never return assignments.
 - Tokens (admin, participant) are `secrets.token_urlsafe(16)` or longer, stored as SHA-256 hashes, compared in constant time, and never logged. The invite token is stored in plain text because the admin needs to see it.
+- One link per person: the organiser's admin link is also their own participant link when they take part, so it may show their own giftee and nothing more. Admin endpoints still never return assignments.
+- Emails carry signed `/open/` links (HMAC, with expiry), never raw tokens. Opening one issues an extra random token in `link_tokens`, so older links keep working. Lost-link emails expire after 24 hours; the rest last until the group is deleted.
 - Money is stored in minor units (pence), GBP only.
 - Fetching a URL for link previews must block private, loopback and link-local addresses, follow few redirects, and enforce size and time limits.
 - Personal data is deleted 30 days after the gift date.

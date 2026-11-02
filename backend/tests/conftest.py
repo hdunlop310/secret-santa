@@ -105,9 +105,9 @@ class Group:
         self.id = self.data["group_id"]
         self.admin = token_from(self.data["admin_link"])
         self.invite = token_from(self.data["invite_link"])
-        self.admin_participant = (
-            token_from(self.data["participant_link"]) if self.data["participant_link"] else None
-        )
+        # The organiser's admin link is also their participant link when they take part.
+        participates = group_payload(**overrides)["admin_participates"]
+        self.admin_participant = self.admin if participates else None
 
 
 @pytest.fixture
@@ -116,7 +116,16 @@ def make_group(client):
 
 
 def join(client: TestClient, outbox: MemoryEmailSender, invite: str, name: str, email: str) -> str:
-    """Join via invite and return the personal token from the email."""
+    """Join via invite and return the new personal token, checking the email copy."""
     response = client.post(f"/join/{invite}", json={"name": name, "email": email})
-    assert response.status_code == 202, response.text
-    return token_from(link_in(outbox.outbox[-1].text, "p"))
+    assert response.status_code == 201, response.text
+    link = response.json()["participant_link"]
+    assert link_in(outbox.outbox[-1].text, "p") == link
+    return token_from(link)
+
+
+def open_link_in(text_body: str) -> str:
+    """The signed /open/ token from an email."""
+    match = re.search(r"https?://\S+/open/([A-Za-z0-9.]+)\?to=\w+", text_body)
+    assert match, "no /open/ link in email"
+    return match.group(1)

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import draw, exclusions, groups, internal, join, leave, me, unsubscribe
+from app.routers import draw, exclusions, groups, internal, join, leave, links, me, unsubscribe
 
 
 def create_app() -> FastAPI:
@@ -15,6 +15,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(groups.router)
     app.include_router(join.router)
+    app.include_router(links.router)
     app.include_router(me.router)
     app.include_router(exclusions.router)
     app.include_router(draw.router)

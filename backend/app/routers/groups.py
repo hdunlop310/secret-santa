@@ -2,13 +2,13 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.draw import check_can_draw, check_draw_rate, notify_draw, run_draw
 from app.email import EmailSender, get_email_sender, send_safely, templates
-from app.models import Group, Participant
+from app.models import Group, LinkToken, Participant
 from app.ratelimit import client_ip, limiter
 from app.schemas import (
     AddParticipant,
@@ -65,14 +65,14 @@ def create_group(body: GroupCreate, request: Request, db: DB, sender: Sender) ->
         admin_token_hash=hash_token(admin_token),
         invite_token=new_token(),
     )
-    personal_token = None
     if body.admin_participates:
-        personal_token = new_token()
+        # The organiser uses their admin link for their own wish list too. Their
+        # participant row still needs a token hash, so give it one nobody holds.
         group.participants.append(
             Participant(
                 name=body.admin_name,
                 email=body.admin_email,
-                token_hash=hash_token(personal_token),
+                token_hash=hash_token(new_token()),
                 is_admin=True,
                 joined_at=datetime.now(UTC),
             )
@@ -84,12 +84,11 @@ def create_group(body: GroupCreate, request: Request, db: DB, sender: Sender) ->
         group_id=group.id,
         admin_link=admin_link(admin_token),
         invite_link=invite_link(group),
-        participant_link=participant_link(personal_token) if personal_token else None,
     )
     send_safely(
         sender,
         templates.admin_created(
-            group, links.admin_link, links.participant_link, unsubscribe_links("a", group.id)
+            group, links.admin_link, body.admin_participates, unsubscribe_links("a", group.id)
         ),
     )
     return links
@@ -224,6 +223,10 @@ def regenerate_admin_link(
     check_email_rate(db, request, group.admin_email)
     token = new_token()
     group.admin_token_hash = hash_token(token)
+    # A leaked link may have been opened elsewhere: drop every extra admin link too.
+    db.execute(
+        delete(LinkToken).where(LinkToken.group_id == group.id, LinkToken.participant_id.is_(None))
+    )
     db.commit()
     send_safely(
         sender,

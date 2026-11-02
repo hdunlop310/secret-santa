@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.email import EmailSender, send_safely, templates
 from app.models import Assignment, Group, Participant, Reminder, WishlistItem
 from app.ratelimit import limiter
-from app.services import invite_link
+from app.services import admin_open_link, member_open_link
 from app.unsubscribe import links as unsubscribe_links
 
 DAILY_HOUR = 9  # UTC; daily reminders go out on the first run at or after this hour
@@ -128,7 +128,11 @@ def send_wishlist_changes(db: Session, sender: EmailSender, now: datetime, repor
         if group is None or giver is None or giver.unsubscribed_at is not None:
             continue
         message = templates.wishlist_changed(
-            group, giver.name, giver.email, invite_link(group), unsubscribe_links("p", giver.id)
+            group,
+            giver.name,
+            giver.email,
+            member_open_link(giver, "giftee"),
+            unsubscribe_links("p", giver.id),
         )
         send_safely(sender, message)
         report.count("wishlist_changed")
@@ -138,7 +142,6 @@ def send_daily(db: Session, sender: EmailSender, now: datetime, report: Report) 
     today = now.date()
     for group in db.scalars(select(Group).where(Group.gift_date >= today)).all():
         days_left = (group.gift_date - today).days
-        link = invite_link(group)
 
         if (
             group.draw_status != "drawn"
@@ -147,7 +150,9 @@ def send_daily(db: Session, sender: EmailSender, now: datetime, report: Report) 
         ):
             kind = f"draw_pending_{days_left}"
             if _last_sent(db, group, None, kind)[1] == 0:
-                message = templates.draw_pending(group, days_left, unsubscribe_links("a", group.id))
+                message = templates.draw_pending(
+                    group, days_left, admin_open_link(group), unsubscribe_links("a", group.id)
+                )
                 send_safely(sender, message)
                 _record(db, group, None, kind, now)
                 report.count("draw_pending")
@@ -161,7 +166,9 @@ def send_daily(db: Session, sender: EmailSender, now: datetime, report: Report) 
                 last, sent = _last_sent(db, group, p, "invite")
                 since = last or p.created_at
                 if sent < INVITE_REMINDER_MAX and now - since >= INVITE_REMINDER_AFTER:
-                    message = templates.invite_reminder(group, p.name, p.email, link, unsub)
+                    message = templates.invite_reminder(
+                        group, p.name, p.email, member_open_link(p), unsub
+                    )
                     send_safely(sender, message)
                     _record(db, group, p, "invite", now)
                     report.count("invite")
@@ -174,7 +181,9 @@ def send_daily(db: Session, sender: EmailSender, now: datetime, report: Report) 
                     now - p.joined_at >= NUDGE_AFTER if last is None else now - last >= NUDGE_EVERY
                 )
                 if due:
-                    message = templates.wishlist_nudge(group, p.name, p.email, link, unsub)
+                    message = templates.wishlist_nudge(
+                        group, p.name, p.email, member_open_link(p), unsub
+                    )
                     send_safely(sender, message)
                     _record(db, group, p, "wishlist_nudge", now)
                     report.count("wishlist_nudge")
@@ -183,7 +192,7 @@ def send_daily(db: Session, sender: EmailSender, now: datetime, report: Report) 
                 kind = f"gift_date_{days_left}"
                 if _last_sent(db, group, p, kind)[1] == 0:
                     message = templates.gift_date_soon(
-                        group, p.name, p.email, days_left, link, unsub
+                        group, p.name, p.email, days_left, member_open_link(p, "giftee"), unsub
                     )
                     send_safely(sender, message)
                     _record(db, group, p, kind, now)

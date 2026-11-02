@@ -14,7 +14,7 @@ class TestCreateGroup:
         body = response.json()
         assert body["admin_link"].startswith("http://localhost:5173/g/")
         assert body["invite_link"].startswith("http://localhost:5173/join/")
-        assert body["participant_link"].startswith("http://localhost:5173/p/")
+        assert "participant_link" not in body  # the admin link covers it
 
         group = db.scalar(select(Group))
         assert group.budget_min == 1500 and group.budget_max == 2500
@@ -25,24 +25,25 @@ class TestCreateGroup:
     def test_tokens_stored_only_as_hashes(self, client, db):
         body = client.post("/groups", json=group_payload()).json()
         admin_token = token_from(body["admin_link"])
-        personal_token = token_from(body["participant_link"])
         group = db.scalar(select(Group))
         assert group.admin_token_hash == hash_token(admin_token)
-        assert group.participants[0].token_hash == hash_token(personal_token)
+        # The organiser's participant row holds a hash of a token nobody was given.
+        assert group.participants[0].token_hash not in (hash_token(admin_token), admin_token)
+        assert len(group.participants[0].token_hash) == 64
         # The plain invite token is stored as-is, by design.
         assert group.invite_token == token_from(body["invite_link"])
 
     def test_admin_not_taking_part(self, client, db):
         body = client.post("/groups", json=group_payload(admin_participates=False)).json()
-        assert body["participant_link"] is None
         assert db.scalar(select(Participant)) is None
+        assert client.get("/me", headers=bearer(token_from(body["admin_link"]))).status_code == 404
 
-    def test_emails_admin_both_links(self, client, outbox):
+    def test_emails_admin_one_link(self, client, outbox):
         body = client.post("/groups", json=group_payload()).json()
         (email,) = outbox.outbox
         assert email.to == "sam@example.com"
-        assert body["admin_link"] in email.text and body["participant_link"] in email.text
-        assert body["admin_link"] in email.html
+        assert body["admin_link"] in email.text and body["admin_link"] in email.html
+        assert "/p/" not in email.text and "wish list" in email.text
 
     def test_email_is_lowercased_and_names_trimmed(self, client, db):
         client.post("/groups", json=group_payload(admin_email="Sam@Example.COM", name="  G  "))
@@ -112,13 +113,14 @@ class TestAdminGroup:
             assert p.token_hash not in text
         assert g.admin not in text
 
-    def test_rejects_bad_tokens_uniformly(self, client, make_group):
+    def test_rejects_bad_tokens_uniformly(self, client, outbox, make_group):
         g = make_group()
+        alex = join(client, outbox, g.invite, "Alex", "alex@example.com")
         responses = [
             client.get("/admin/group"),
             client.get("/admin/group", headers={"Authorization": "Basic abc"}),
             client.get("/admin/group", headers=bearer("nope")),
-            client.get("/admin/group", headers=bearer(g.admin_participant)),
+            client.get("/admin/group", headers=bearer(alex)),
             client.get("/admin/group", headers=bearer("x" * 500)),
         ]
         assert {r.status_code for r in responses} == {404}

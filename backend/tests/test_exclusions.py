@@ -73,7 +73,7 @@ class TestSaveAndLoad:
 
     def test_admin_only_writes(self, client, five):
         body = {"pairs": []}
-        for token in (five.tokens["Alex"], five.tokens["Sam"]):
+        for token in (five.tokens["Alex"], five.tokens["Priya"]):
             h = bearer(token)
             assert (
                 client.put(f"/groups/{five.id}/exclusions", headers=h, json=body).status_code == 404

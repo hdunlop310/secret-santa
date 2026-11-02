@@ -152,3 +152,22 @@ class Reminder(Base):
     type: Mapped[str] = mapped_column(String(32))
     send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class LinkToken(Base):
+    """An extra working link for an admin or a participant, one per device or email.
+
+    Created when someone opens a link from an email or the lost-link page, so a new link
+    never breaks an older one. Only the SHA-256 hash is stored. participant_id is null
+    for a group's admin link.
+    """
+
+    __tablename__ = "link_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), index=True)
+    participant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("participants.id", ondelete="CASCADE"), index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

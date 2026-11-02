@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.email import EmailSender, send_many_safely, templates
 from app.models import Assignment, Exclusion, Group
 from app.ratelimit import limiter
-from app.services import invite_link
+from app.services import member_open_link
 from app.unsubscribe import links as unsubscribe_links
 
 
@@ -84,9 +84,15 @@ def notify_draw(
 ) -> None:
     """Email everyone that names were drawn. Sent before the response returns: on
     serverless hosts nothing is guaranteed to run after it."""
-    link = invite_link(group)
     messages = [
-        templates.draw_done(group, p.name, p.email, link, redraw, unsubscribe_links("p", p.id))
+        templates.draw_done(
+            group,
+            p.name,
+            p.email,
+            member_open_link(p, "giftee"),
+            redraw,
+            unsubscribe_links("p", p.id),
+        )
         for p in group.participants
         if p.id not in skip
     ]
