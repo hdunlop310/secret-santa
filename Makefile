@@ -1,4 +1,4 @@
-.PHONY: dev up api web test test-backend test-frontend lint migrate
+.PHONY: dev up api web test test-backend test-frontend e2e jobs lint migrate
 
 UV = uv --directory backend
 
@@ -24,6 +24,14 @@ test-backend:
 
 test-frontend:
 	npm --prefix frontend test
+
+# Needs `make dev` running, with RATE_LIMIT_GROUP_CREATE and RATE_LIMIT_EMAIL_SEND raised in .env
+e2e:
+	npm --prefix frontend run e2e
+
+# Reminders, wish-list-changed emails and deleting old groups (run on a schedule in production)
+jobs:
+	$(UV) run python -m app.jobs
 
 lint:
 	$(UV) run ruff check .

@@ -43,3 +43,50 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: santa
+          POSTGRES_PASSWORD: santa
+          POSTGRES_DB: santa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U santa" --health-interval 2s --health-retries 20
+      mailpit:
+        image: axllent/mailpit:v1.27
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      DATABASE_URL: postgresql+psycopg://santa:santa@localhost:5432/santa
+      EMAIL_BACKEND: smtp
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      RATE_LIMIT_GROUP_CREATE: "1000"
+      RATE_LIMIT_EMAIL_SEND: "1000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --locked
+        working-directory: backend
+      - run: uv run alembic upgrade head
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: frontend/test-results

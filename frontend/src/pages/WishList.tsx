@@ -24,6 +24,8 @@ export function WishListPage() {
   const query = useQuery({ queryKey: key, queryFn: () => api<Me>('/me', { token }) })
   const [editing, setEditing] = useState<number | null>(null)
   const [leaving, setLeaving] = useState(false)
+  // Local state so the checkbox changes in the same render as the tap (no flicker).
+  const [surpriseShown, setSurpriseShown] = useState<boolean | null>(null)
   const navigate = useNavigate()
 
   const setMe = (update: (me: Me) => Me) => queryClient.setQueryData<Me>(key, (me) => (me ? update(me) : me))
@@ -32,6 +34,8 @@ export function WishListPage() {
   const surprise = useMutation({
     mutationFn: (secret_surprise: boolean) => api<Me>('/me', { method: 'PUT', token, body: { secret_surprise } }),
     onSuccess: (me) => queryClient.setQueryData(key, me),
+    // Until saved, the box shows what was tapped; on failure it falls back to the server.
+    onSettled: () => setSurpriseShown(null),
   })
   const addItem = useMutation({
     mutationFn: (item: ItemInput) => api<WishlistItem>('/me/items', { method: 'POST', token, body: item }),
@@ -68,6 +72,7 @@ export function WishListPage() {
   if (query.isError) return <ErrorState error={query.error} />
   const me = query.data
   const { group, items } = me
+  const surpriseOn = surpriseShown ?? me.secret_surprise
 
   function move(index: number, by: -1 | 1) {
     const ids = items.map((i) => i.id)
@@ -95,9 +100,11 @@ export function WishListPage() {
           <input
             id="surprise"
             type="checkbox"
-            checked={me.secret_surprise}
-            disabled={surprise.isPending}
-            onChange={(e) => surprise.mutate(e.target.checked)}
+            checked={surpriseOn}
+            onChange={(e) => {
+              setSurpriseShown(e.target.checked)
+              surprise.mutate(e.target.checked)
+            }}
           />
           <label htmlFor="surprise">Secret surprise: skip my list</label>
         </div>
@@ -108,7 +115,7 @@ export function WishListPage() {
           </p>
         )}
 
-        {!me.secret_surprise && (
+        {!surpriseOn && (
           <>
             {items.length > 0 && (
               <ul className="items" aria-label="Your items">
