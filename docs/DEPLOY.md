@@ -24,7 +24,7 @@ The private repository is https://github.com/hdunlop310/secret-santa with `main`
 
 Done for production: the repo is linked to Neon project `rough-violet-72141371` (`neon init`, `neon.ts`), its `production` branch is in London, and all migrations have been applied to it.
 
-For staging, create a branch named `staging` from the Neon console. Don't create it with `neon checkout`: the branch policy in `neon.ts` gives new branches a 7-day expiry, so a checked-out staging branch would delete itself. Then run the "Migrate database" workflow for `main` (step 4).
+Done for staging: branch `staging` was created from `production` with `neon branches create` (no expiry), so it already has the tables. Don't recreate it with `neon checkout`: the branch policy in `neon.ts` gives new branches a 7-day expiry.
 
 Each branch has two connection strings (`neon env pull` writes them as `DATABASE_URL` and `DATABASE_URL_UNPOOLED`):
 - **pooled** (host contains `-pooler`): the app's traffic, for Vercel

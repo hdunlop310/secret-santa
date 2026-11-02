@@ -25,3 +25,7 @@ playwright-report/
 *.log
 *.tsbuildinfo
 .neon
+
+# Neon agent skills (local only)
+.claude/
+skills-lock.json
