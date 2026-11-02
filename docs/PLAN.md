@@ -106,6 +106,18 @@ Matching lives in `backend/app/matching.py`: feasibility and the bottleneck come
 
 The grid is keyboard navigable: one cell is in the tab order and the arrow keys move between cells, skipping the diagonal. With many people it scrolls sideways inside its card while the giver names stay pinned.
 
+## API (milestone 4 shapes)
+
+Errors that need a decision come back as 409 with `detail: { code, message, ... }`. Codes: `confirm_redraw`, `no_valid_draw` (with `bottleneck`), `too_few`, `gift_date_passed`, `too_many_draws`.
+
+- `POST /groups/{id}/draw` (admin) `{ confirm_redraw }` returns `{ draw_status, drawn_at, participant_count }` and never any pairs. A second draw needs `confirm_redraw: true`. Redraws are allowed until the gift date (decided 2 Nov 2026), at most 10 per group per hour because each one emails everyone.
+- `POST /groups/{id}/participants` (admin) and `DELETE /groups/{id}/participants/{pid}?confirm_redraw=` (admin): after the draw both need confirmation and redraw in the same transaction; if the new group can't be drawn, nothing changes.
+- `GET /me/giftee` (participant) returns `{ drawn, giftee: { name, secret_surprise, items, updated_at, updated_since_draw } }` for the caller only. No ids. Items are empty when the giftee chose secret surprise.
+
+Draw emails never name the giftee; they point back to the personal link and to the invite link, where entering your email sends a fresh link. Only the current round of assignments is stored; a redraw deletes the old one. `tests/test_secrecy.py` walks every route as the admin, every participant and with no token, and fails if a route is added without being listed.
+
+The "updated" note on the giftee screen says "[Name] updated this list 2 hours ago" rather than the reference's "her list", because the app doesn't know anyone's pronouns.
+
 ## Migrations
 
 1. `0001_initial`: groups, participants, exclusions, assignments, wishlist_items, reminders as in the spec, plus the fields below. Created in M1 so later milestones only add columns.
@@ -118,7 +130,7 @@ The grid is keyboard navigable: one cell is in the tab order and the arrow keys 
 3. **Invite token** is `token_urlsafe(16)`, not the short `k3x9` in the reference. It is stored plain text as the spec says; anyone with it can join, which is the intent.
 4. **Participant statuses.** The dashboard shows Invited, Joined and Wish list in. "Invited" only exists if the admin can add people by email (F2), so I added `POST /groups/{id}/participants` without a UI. Say if you want an "add by email" form on the dashboard.
 5. **Admin as participant** has two tokens (admin and participant). The admin link is shown once and emailed; the personal link is emailed and shown once after creation.
-6. **Lock date for redraw (F10)** is not defined anywhere. Proposal: no separate date; redraw is allowed any time before the gift date, and always with a confirmation and a notification email. Needs your decision before M4.
+6. **Lock date for redraw (F10)** is not defined anywhere. Decided 2 Nov 2026: no separate date; redraw is allowed until the gift date, always with a confirmation and a notification email.
 7. **Reminder cadence (F11)** says the admin sets it but no screen has the control. Proposal: fixed defaults for v1 (wish-list nudge 3 days after joining then weekly, gift-date reminder 7 days and 1 day before), no UI.
 8. **Wish-list-changed emails** use the `reminders` table with a `type` and a `send_at`, batched to one per hour per giver. Needs `last_sent_at` logic in M5.
 9. **Rate limiting** has no stack library. I will use a small in-process limiter keyed by IP and by email. That is correct for a single instance; if deployed on more than one, it needs Postgres or Redis. Flagging now so hosting is chosen with that in mind.
