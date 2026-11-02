@@ -41,6 +41,10 @@ ROUTES = {
     ("POST", "/groups/{group_id}/draw"): {"json": {"confirm_redraw": False}},
     ("DELETE", "/groups/{group_id}/participants/{participant_id}"): {"skip_auth_matrix": True},
     ("GET", "/me/giftee"): {},
+    ("DELETE", "/me"): {"skip_auth_matrix": True},  # deletes the caller
+    ("DELETE", "/admin/group"): {"skip_auth_matrix": True},  # deletes everything
+    ("POST", "/unsubscribe/{token}"): {},
+    ("POST", "/internal/jobs/run"): {},
 }
 
 
@@ -109,6 +113,7 @@ def test_nothing_leaks_who_has_whom(client, db, outbox, make_group, caplog):
             "invite_token": g.invite,
             "participant_id": ids["Mia"],
             "item_id": item_ids.get(as_name, item_ids["Sam"]),
+            "token": "p1.00000000000000000000000000000000",
         }
         url = path.format(**params)
         headers = bearer(token) if token else {}

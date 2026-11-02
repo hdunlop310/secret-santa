@@ -6,6 +6,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -42,6 +43,7 @@ class Group(Base):
         String(16), default="not_drawn", server_default="not_drawn"
     )
     drawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    admin_unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     participants: Mapped[list["Participant"]] = relationship(
@@ -63,6 +65,7 @@ class Participant(Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     secret_surprise: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     # Null until the person joins via the invite link or first opens a link the admin sent.
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     joined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     unsubscribed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # Last change to items or secret surprise; drives the giver's "updated" note.
@@ -121,7 +124,13 @@ class WishlistItem(Base):
 
 
 class Reminder(Base):
+    """One row per reminder sent, or per wish-list-changed email waiting to go out.
+
+    participant_id is null for emails to a group's admin.
+    """
+
     __tablename__ = "reminders"
+    __table_args__ = (Index("ix_reminders_lookup", "group_id", "participant_id", "type"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     group_id: Mapped[int] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), index=True)

@@ -27,6 +27,16 @@ class EmailMessage:
     subject: str
     text: str
     html: str
+    # One-click unsubscribe target for the List-Unsubscribe header (RFC 8058).
+    unsubscribe_url: str | None = None
+
+    def headers(self) -> dict[str, str]:
+        if not self.unsubscribe_url:
+            return {}
+        return {
+            "List-Unsubscribe": f"<{self.unsubscribe_url}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
 
 
 class EmailSender(Protocol):
@@ -60,6 +70,8 @@ class SmtpEmailSender:
         mime["From"] = self.sender
         mime["To"] = message.to
         mime["Subject"] = message.subject
+        for name, value in message.headers().items():
+            mime[name] = value
         mime.set_content(message.text)
         mime.add_alternative(message.html, subtype="html")
         with smtplib.SMTP(self.host, self.port, timeout=10) as smtp:
@@ -80,6 +92,7 @@ class ResendEmailSender:
                 "subject": message.subject,
                 "text": message.text,
                 "html": message.html,
+                **({"headers": message.headers()} if message.headers() else {}),
             },
             timeout=10,
         )

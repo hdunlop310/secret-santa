@@ -12,6 +12,7 @@ from app.email import EmailSender, send_safely, templates
 from app.models import Assignment, Exclusion, Group
 from app.ratelimit import limiter
 from app.services import invite_link
+from app.unsubscribe import links as unsubscribe_links
 
 
 def conflict(code: str, message: str, **extra: object) -> HTTPException:
@@ -86,5 +87,9 @@ def notify_draw(
     for p in group.participants:
         if p.id not in skip:
             background.add_task(
-                send_safely, sender, templates.draw_done(group, p.name, p.email, link, redraw)
+                send_safely,
+                sender,
+                templates.draw_done(
+                    group, p.name, p.email, link, redraw, unsubscribe_links("p", p.id)
+                ),
             )

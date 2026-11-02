@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import func, select
 
 from app.config import get_settings
+from app.jobs import schedule_wishlist_changed
 from app.linkpreview import fetch_preview
 from app.models import Participant, WishlistItem
 from app.ratelimit import limiter
@@ -50,14 +51,17 @@ def update_me(body: MeUpdate, participant: CurrentParticipant, db: DB) -> Me:
         participant.name = body.name
     if body.secret_surprise is not None and body.secret_surprise != participant.secret_surprise:
         participant.secret_surprise = body.secret_surprise
-        _touch(participant)
+        _touch(db, participant)
     db.commit()
     return _me(participant)
 
 
-def _touch(participant: Participant) -> None:
-    """Record a wish-list change so the giver can see it was updated."""
-    participant.wishlist_updated_at = datetime.now(UTC)
+def _touch(db: DB, participant: Participant) -> None:
+    """Record a wish-list change: the giver sees it was updated and, after the draw,
+    gets an email (batched, at most one an hour)."""
+    now = datetime.now(UTC)
+    participant.wishlist_updated_at = now
+    schedule_wishlist_changed(db, participant, now)
 
 
 def _own_item(db: DB, participant: Participant, item_id: int) -> WishlistItem:
@@ -84,7 +88,7 @@ def add_item(body: ItemCreate, participant: CurrentParticipant, db: DB) -> Wishl
         **body.model_dump(),
     )
     db.add(item)
-    _touch(participant)
+    _touch(db, participant)
     db.commit()
     return WishlistItemOut.model_validate(item, from_attributes=True)
 
@@ -101,7 +105,7 @@ def update_item(
         changes["image_url"] = None  # a new link makes the old preview image wrong
     for field, value in changes.items():
         setattr(item, field, value)
-    _touch(participant)
+    _touch(db, participant)
     db.commit()
     return WishlistItemOut.model_validate(item, from_attributes=True)
 
@@ -109,7 +113,7 @@ def update_item(
 @router.delete("/me/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_item(item_id: int, participant: CurrentParticipant, db: DB) -> None:
     db.delete(_own_item(db, participant, item_id))
-    _touch(participant)
+    _touch(db, participant)
     db.commit()
 
 
@@ -124,7 +128,7 @@ def reorder_items(
         )
     for position, item_id in enumerate(body.ids, start=1):
         items[item_id].sort_order = position
-    _touch(participant)
+    _touch(db, participant)
     db.commit()
     return [WishlistItemOut.model_validate(items[i], from_attributes=True) for i in body.ids]
 

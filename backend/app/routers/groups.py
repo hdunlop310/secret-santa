@@ -31,6 +31,7 @@ from app.services import (
     participant_status,
     participant_summaries,
 )
+from app.unsubscribe import links as unsubscribe_links
 
 router = APIRouter()
 
@@ -90,7 +91,9 @@ def create_group(
     background.add_task(
         send_safely,
         sender,
-        templates.admin_created(group, links.admin_link, links.participant_link),
+        templates.admin_created(
+            group, links.admin_link, links.participant_link, unsubscribe_links("a", group.id)
+        ),
     )
     return links
 
@@ -195,7 +198,13 @@ def add_participant(
     background.add_task(
         send_safely,
         sender,
-        templates.invited_by_admin(group, body.name, body.email, participant_link(token)),
+        templates.invited_by_admin(
+            group,
+            body.name,
+            body.email,
+            participant_link(token),
+            unsubscribe_links("p", participant.id),
+        ),
     )
     if drawn:
         notify_draw(background, sender, group, redraw=True, skip={participant.id})
@@ -223,5 +232,9 @@ def regenerate_admin_link(
     group.admin_token_hash = hash_token(token)
     db.commit()
     background.add_task(
-        send_safely, sender, templates.admin_link_regenerated(group, admin_link(token))
+        send_safely,
+        sender,
+        templates.admin_link_regenerated(
+            group, admin_link(token), unsubscribe_links("a", group.id)
+        ),
     )
