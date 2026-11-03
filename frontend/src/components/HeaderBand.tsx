@@ -19,7 +19,7 @@ export function SnowflakeIcon() {
 }
 
 const SNOW = [
-  { top: 18, right: 40, size: 8 },
+  { top: 6, right: 12, size: 8 }, // above the top-row text, never on it
   { top: 66, right: 92, size: 5 },
   { top: 104, right: 28, size: 6 },
   { top: 146, right: 124, size: 4 },

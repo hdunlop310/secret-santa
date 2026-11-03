@@ -249,6 +249,21 @@ a:hover {
 .input::placeholder {
   color: #8a7c6e;
 }
+/* iOS Safari gives date inputs their own minimum width and height, which pushes
+   them past the edge of the page. Make them behave like the other inputs. */
+@supports (-webkit-touch-callout: none) {
+  .input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    line-height: calc(var(--tap) - 3px);
+  }
+  .input[type='date']::-webkit-date-and-time-value {
+    margin: 0;
+    text-align: left;
+  }
+}
 textarea.input {
   height: 60px;
   padding: 10px 14px;
